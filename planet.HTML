@@ -1,145 +1,41 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Markerless AR Earth (Camera Fixed)</title>
+    <title>Simple Camera Feed</title>
     <style>
-        body { margin: 0; overflow: hidden; font-family: Arial, Helvetica, sans-serif; }
-        #info {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            background: rgba(0,0,0,0.7);
-            color: white;
-            padding: 8px 16px;
-            border-radius: 20px;
-            pointer-events: none;
-            z-index: 10;
-            font-size: 14px;
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: black;
+        }
+        video {
+            width: 100vw;
+            height: 100vh;
+            object-fit: cover; /* ensures video fills screen without distortion */
         }
     </style>
 </head>
 <body>
-    <div id="info">🔍 Move your phone slowly to detect a surface</div>
+    <video id="video" autoplay playsinline></video>
 
-    <!-- Import maps for Three.js -->
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://unpkg.com/three@0.128.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.128.0/examples/jsm/"
+    <script>
+        const video = document.getElementById('video');
+
+        // Request camera access
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'environment' }, // use rear camera
+                    audio: false 
+                });
+                video.srcObject = stream;
+            } catch (err) {
+                alert('Camera access denied or not available.');
+                console.error(err);
             }
         }
-    </script>
 
-    <script type="module">
-        import * as THREE from 'three';
-        import { ARButton } from 'three/addons/webxr/ARButton.js';
-
-        // --- Setup scene, camera, renderer ---
-        const scene = new THREE.Scene();
-        // IMPORTANT: Do NOT set a background color! Let the camera feed show through.
-        
-        const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
-
-        const renderer = new THREE.WebGLRenderer({ 
-            antialias: true, 
-            alpha: true  // Must be true to see the camera background
-        });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(window.devicePixelRatio);
-        renderer.xr.enabled = true;
-        // Optional: set clear color to fully transparent (default is 0x00000000 with alpha:true)
-        renderer.setClearColor(0x000000, 0); 
-        document.body.appendChild(renderer.domElement);
-
-        // --- Lighting ---
-        const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
-        scene.add(light);
-
-        // --- Create Earth sphere ---
-        const geometry = new THREE.SphereGeometry(0.2, 64, 64);
-        const textureLoader = new THREE.TextureLoader();
-        const earthMaterial = new THREE.MeshStandardMaterial({
-            map: textureLoader.load('https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg')
-        });
-        const earth = new THREE.Mesh(geometry, earthMaterial);
-        earth.visible = false;
-        scene.add(earth);
-
-        // --- Reticle (visual indicator of detected surface) ---
-        const reticleGeometry = new THREE.RingGeometry(0.15, 0.2, 32);
-        const reticleMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, side: THREE.DoubleSide, transparent: true, opacity: 0.5 });
-        const reticle = new THREE.Mesh(reticleGeometry, reticleMaterial);
-        reticle.rotation.x = -Math.PI / 2; // lie flat
-        reticle.visible = false;
-        scene.add(reticle);
-
-        // --- WebXR setup ---
-        const button = ARButton.createButton(renderer, {
-            requiredFeatures: ['hit-test'],
-            optionalFeatures: ['dom-overlay'],
-            domOverlay: { root: document.body }
-        });
-        document.body.appendChild(button);
-
-        // --- Hit test variables ---
-        let hitTestSource = null;
-        let isHitTestReady = false;
-
-        // --- When AR session starts ---
-        renderer.xr.addEventListener('sessionstart', async () => {
-            const session = renderer.xr.getSession();
-            const viewerSpace = await session.requestReferenceSpace('viewer');
-            hitTestSource = await session.requestHitTestSource({ space: viewerSpace });
-            isHitTestReady = true;
-        });
-
-        // --- Animation loop ---
-        renderer.setAnimationLoop((timestamp, frame) => {
-            if (frame) {
-                const referenceSpace = renderer.xr.getReferenceSpace();
-
-                if (isHitTestReady && hitTestSource) {
-                    const hitTestResults = frame.getHitTestResults(hitTestSource);
-
-                    if (hitTestResults.length > 0) {
-                        const hit = hitTestResults[0];
-                        const pose = hit.getPose(referenceSpace);
-
-                        if (pose) {
-                            // Update reticle position
-                            reticle.visible = true;
-                            reticle.position.copy(pose.transform.position);
-                            
-                            // Place Earth on first detection (or keep it at reticle position)
-                            if (!earth.visible) {
-                                earth.visible = true;
-                                earth.position.copy(pose.transform.position);
-                                earth.position.y += 0.2; // lift half sphere so it sits on surface
-                            }
-                        }
-                    } else {
-                        reticle.visible = false;
-                    }
-                }
-            }
-
-            // Rotate Earth
-            if (earth.visible) {
-                earth.rotation.y += 0.005;
-            }
-
-            renderer.render(scene, camera);
-        });
-
-        // --- Resize handler ---
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
+        startCamera();
     </script>
 </body>
 </html>
