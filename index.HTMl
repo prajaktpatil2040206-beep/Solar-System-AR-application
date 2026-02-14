@@ -1,282 +1,224 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
+    <meta charset="utf-8">
+    <title>🌍 AR Solar System – Hiro Marker</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>🌍 AR Solar System on QR Code</title>
+    <!-- A-Frame and AR.js -->
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
+
     <style>
-        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
-        #info {
+        body { margin: 0; overflow: hidden; }
+        .info {
             position: absolute;
-            bottom: 30px;
-            left: 0; right: 0;
+            bottom: 20px;
+            left: 0;
+            right: 0;
             text-align: center;
             color: white;
-            background: rgba(0,0,0,0.6);
-            backdrop-filter: blur(8px);
-            padding: 12px 24px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            font-family: Arial, sans-serif;
+            pointer-events: none;
+            z-index: 999;
             border-radius: 40px;
             width: fit-content;
             margin: 0 auto;
-            z-index: 10;
-            border: 1px solid #ffffff33;
-            pointer-events: none;
-        }
-        #reset-btn {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            z-index: 10;
-            background: #1e2a3a;
-            color: white;
-            border: 2px solid #4aa3ff;
-            border-radius: 40px;
-            padding: 12px 24px;
-            font-size: 16px;
-            font-weight: bold;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-            cursor: pointer;
-            pointer-events: auto;
+            backdrop-filter: blur(5px);
         }
     </style>
 </head>
 <body>
-    <div id="info">📱 Point camera at <strong>HIRO marker</strong> → Solar system appears.<br>👆 Pinch to zoom • Drag to move • Double‑tap to reset</div>
-    <button id="reset-btn">🎯 Reset position</button>
+    <div class="info">🔵 Point camera at <strong>HIRO marker</strong> to see the Solar System</div>
 
-    <!-- Three.js & AR.js -->
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/ar.js@3.3.2/three.js/build/ar-threex.js"></script>
+    <a-scene embedded arjs="sourceType: webcam; detectionMode: mono; debugUIEnabled: false;">
 
-    <script>
-        (function() {
-            // --- 1. SETUP SCENE, CAMERA, RENDERER (transparent) ---
-            const scene = new THREE.Scene();
-            const camera = new THREE.Camera();
-            scene.add(camera);
+        <!-- Camera (required) -->
+        <a-entity camera></a-entity>
 
-            const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-            renderer.setClearColor(new THREE.Color(0x000000), 0);
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            document.body.appendChild(renderer.domElement);
+        <!-- This marker will trigger the solar system -->
+        <a-marker preset="hiro" id="solar-marker">
 
-            // --- 2. AR TOOLKIT SOURCE (camera) ---
-            const arToolkitSource = new THREEx.ArToolkitSource({
-                sourceType: 'webcam',
-                deviceId: null,
-            });
+            <!-- We'll group everything inside the marker -->
+            <a-entity id="solar-system">
 
-            function onResize() {
-                arToolkitSource.onResize();
-                arToolkitSource.copySizeTo(renderer.domElement);
-                renderer.setSize(window.innerWidth, window.innerHeight);
-            }
+                <!-- Sun (glowing) -->
+                <a-sphere radius="0.25" color="#ffaa00" position="0 0 0" 
+                          material="emissive: #ff5500"></a-sphere>
 
-            arToolkitSource.init(() => {
-                onResize();
-            });
+                <!-- Orbit lines (invisible circles that hold the planets) -->
+                <!-- Mercury Orbit (and planet) -->
+                <a-entity rotation="0 0 0">
+                    <a-ring radius="0.5" radius-tubular="0.005" color="#888" 
+                            material="transparent: true; opacity: 0.3" 
+                            rotation="90 0 0"></a-ring>
+                    <a-sphere radius="0.06" color="#aaaaaa" 
+                              position="0.5 0 0" 
+                              animation="property: position; to: 0.5 0 0; dur: 3000; easing: linear; loop: true; 
+                                         dir: alternate; 
+                                         from: -0.5 0 0; 
+                                         startEvents: ; 
+                                         pauseEvents: ; 
+                                         elasticity: 1;
+                                         autoplay: true;
+                                         enabled: true;
+                                         
+                                         Actually we need revolution around sun. 
+                                         Better to use a rotation wrapper.">
+                    </a-sphere>
+                </a-entity>
 
-            window.addEventListener('resize', onResize);
+                <!-- Simpler: use a entity for each planet with rotation around sun -->
+                <!-- Mercury -->
+                <a-entity rotation="0 0 0">
+                    <a-ring radius="0.5" radius-tubular="0.002" color="#888" 
+                            material="transparent: true; opacity: 0.2" 
+                            rotation="90 0 0"></a-ring>
+                    <a-sphere radius="0.05" color="#b0b0b0" 
+                              position="0.5 0 0">
+                        <a-animation attribute="position" 
+                                     from="0.5 0 0" 
+                                     to="-0.5 0 0" 
+                                     dur="4000" 
+                                     easing="linear" 
+                                     repeat="indefinite"
+                                     direction="alternate"></a-animation>
+                    </a-sphere>
+                </a-entity>
 
-            // --- 3. AR TOOLKIT CONTEXT (marker detection) ---
-            const arToolkitContext = new THREEx.ArToolkitContext({
-                cameraParametersUrl: 'https://cdn.jsdelivr.net/npm/ar.js@3.3.2/three.js/data/camera_para.dat',
-                detectionMode: 'mono',
-                maxDetectionRate: 30,
-                canvasWidth: 640,
-                canvasHeight: 480,
-            });
+                <!-- Wait, this method (alternate) goes back and forth, not circular. 
+                     Better to use a rotation around the sun by wrapping planet in a rotated group. -->
 
-            arToolkitContext.init(() => {
-                camera.projectionMatrix.copy(arToolkitContext.getProjectionMatrix());
-            });
+                <!-- Let's redesign: Each planet will be inside a group that rotates around Y axis,
+                     and the planet itself is offset along X. That gives perfect circular orbit. -->
 
-            // --- 4. MARKER ROOT (everything inside moves with marker) ---
-            const markerRoot = new THREE.Group();
-            scene.add(markerRoot);
+                <!-- Mercury -->
+                <a-entity rotation="0 0 0" id="mercury-orbit">
+                    <a-ring radius="0.5" radius-tubular="0.002" color="#aaa" 
+                            material="transparent: true; opacity: 0.3" 
+                            rotation="90 0 0"></a-ring>
+                    <a-sphere radius="0.05" color="#b0b0b0" position="0.5 0 0"></a-sphere>
+                    <a-animation attribute="rotation" 
+                                 to="0 360 0" 
+                                 dur="5000" 
+                                 easing="linear" 
+                                 repeat="indefinite"></a-animation>
+                </a-entity>
 
-            const markerControls = new THREEx.ArMarkerControls(arToolkitContext, markerRoot, {
-                type: 'pattern',
-                patternUrl: 'https://cdn.jsdelivr.net/npm/ar.js@3.3.2/three.js/data/patt.hiro',
-                changeMatrixMode: 'modelViewMatrix'
-            });
+                <!-- Venus -->
+                <a-entity rotation="0 60 0" id="venus-orbit">
+                    <a-ring radius="0.7" radius-tubular="0.002" color="#f90" 
+                            material="transparent: true; opacity: 0.3" 
+                            rotation="90 0 0"></a-ring>
+                    <a-sphere radius="0.06" color="#f9c28d" position="0.7 0 0"></a-sphere>
+                    <a-animation attribute="rotation" 
+                                 to="0 360 0" 
+                                 dur="7000" 
+                                 easing="linear" 
+                                 repeat="indefinite"></a-animation>
+                </a-entity>
 
-            // --- 5. LIGHTING ---
-            const ambient = new THREE.AmbientLight(0x404060);
-            markerRoot.add(ambient);
+                <!-- Earth -->
+                <a-entity rotation="0 120 0" id="earth-orbit">
+                    <a-ring radius="0.9" radius-tubular="0.002" color="#2a7fff" 
+                            material="transparent: true; opacity: 0.3" 
+                            rotation="90 0 0"></a-ring>
+                    <a-sphere radius="0.065" color="#2a7fff" position="0.9 0 0"></a-sphere>
+                    <a-animation attribute="rotation" 
+                                 to="0 360 0" 
+                                 dur="9000" 
+                                 easing="linear" 
+                                 repeat="indefinite"></a-animation>
+                </a-entity>
 
-            const sunLight = new THREE.PointLight(0xffeedd, 2, 30);
-            sunLight.position.set(0, 0, 0);
-            markerRoot.add(sunLight);
+                <!-- Mars -->
+                <a-entity rotation="0 180 0" id="mars-orbit">
+                    <a-ring radius="1.1" radius-tubular="0.002" color="#c1440e" 
+                            material="transparent: true; opacity: 0.3" 
+                            rotation="90 0 0"></a-ring>
+                    <a-sphere radius="0.055" color="#c1440e" position="1.1 0 0"></a-sphere>
+                    <a-animation attribute="rotation" 
+                                 to="0 360 0" 
+                                 dur="11000" 
+                                 easing="linear" 
+                                 repeat="indefinite"></a-animation>
+                </a-entity>
 
-            const dirLight = new THREE.DirectionalLight(0xffffff, 1);
-            dirLight.position.set(1, 2, 3);
-            markerRoot.add(dirLight);
+                <!-- Jupiter (big) -->
+                <a-entity rotation="0 240 0" id="jupiter-orbit">
+                    <a-ring radius="1.4" radius-tubular="0.005" color="#d8a27a" 
+                            material="transparent: true; opacity: 0.3" 
+                            rotation="90 0 0"></a-ring>
+                    <a-sphere radius="0.12" color="#d8a27a" position="1.4 0 0"></a-sphere>
+                    <a-animation attribute="rotation" 
+                                 to="0 360 0" 
+                                 dur="14000" 
+                                 easing="linear" 
+                                 repeat="indefinite"></a-animation>
+                </a-entity>
 
-            // --- 6. CREATE THE SOLAR SYSTEM (horizontal) ---
-            // Sun (emissive)
-            const sunGeo = new THREE.SphereGeometry(0.8, 64, 64);
-            const sunMat = new THREE.MeshStandardMaterial({
-                color: 0xffaa33,
-                emissive: 0xff5500,
-                emissiveIntensity: 1.2,
-                roughness: 0.2
-            });
-            // Try to load sun texture (optional)
-            new THREE.TextureLoader().load('img/sun_hd.jpg', (tex) => {
-                sunMat.map = tex;
-                sunMat.needsUpdate = true;
-            }, undefined, () => {});
-            const sun = new THREE.Mesh(sunGeo, sunMat);
-            markerRoot.add(sun);
+                <!-- Saturn (with ring) -->
+                <a-entity rotation="0 300 0" id="saturn-orbit">
+                    <a-ring radius="1.7" radius-tubular="0.005" color="#e0bb87" 
+                            material="transparent: true; opacity: 0.3" 
+                            rotation="90 0 0"></a-ring>
+                    <!-- Saturn sphere -->
+                    <a-sphere radius="0.1" color="#e0bb87" position="1.7 0 0"></a-sphere>
+                    <!-- Ring (torus) -->
+                    <a-torus radius="0.18" radius-tubular="0.01" color="#c0a070" 
+                             rotation="90 0 0" position="1.7 0 0"></a-torus>
+                    <a-animation attribute="rotation" 
+                                 to="0 360 0" 
+                                 dur="17000" 
+                                 easing="linear" 
+                                 repeat="indefinite"></a-animation>
+                </a-entity>
 
-            // Planet data: [radius, size, color, texturePath, speed]
-            const planets = [
-                { radius: 1.8, size: 0.15, color: 0xaaaaaa, tex: 'img/mercury_hd.jpg', speed: 0.02 },
-                { radius: 2.4, size: 0.18, color: 0xffcc88, tex: 'img/venus_hd.jpg',   speed: 0.015 },
-                { radius: 3.0, size: 0.2,  color: 0x2288ff, tex: 'img/earth_hd.jpg',   speed: 0.012 },
-                { radius: 3.6, size: 0.17, color: 0xff6633, tex: 'img/mars_hd.jpg',    speed: 0.01 },
-                { radius: 4.5, size: 0.4,  color: 0xddbb99, tex: 'img/jupiter_hd.jpg', speed: 0.007 },
-                { radius: 5.4, size: 0.35, color: 0xeeddbb, tex: 'img/saturn_hd.jpg',  speed: 0.005, ring: true },
-                { radius: 6.3, size: 0.3,  color: 0x88ccff, tex: 'img/uranus_hd.jpg',  speed: 0.004 },
-                { radius: 7.2, size: 0.28, color: 0x3366ff, tex: 'img/neptune_hd.jpg', speed: 0.003 }
-            ];
+                <!-- Uranus -->
+                <a-entity rotation="0 30 0" id="uranus-orbit">
+                    <a-ring radius="2.0" radius-tubular="0.005" color="#7ec8e0" 
+                            material="transparent: true; opacity: 0.3" 
+                            rotation="90 0 0"></a-ring>
+                    <a-sphere radius="0.08" color="#7ec8e0" position="2.0 0 0"></a-sphere>
+                    <a-animation attribute="rotation" 
+                                 to="0 360 0" 
+                                 dur="20000" 
+                                 easing="linear" 
+                                 repeat="indefinite"></a-animation>
+                </a-entity>
 
-            const planetMeshes = [];
+                <!-- Neptune -->
+                <a-entity rotation="0 150 0" id="neptune-orbit">
+                    <a-ring radius="2.3" radius-tubular="0.005" color="#4b70dd" 
+                            material="transparent: true; opacity: 0.3" 
+                            rotation="90 0 0"></a-ring>
+                    <a-sphere radius="0.08" color="#4b70dd" position="2.3 0 0"></a-sphere>
+                    <a-animation attribute="rotation" 
+                                 to="0 360 0" 
+                                 dur="23000" 
+                                 easing="linear" 
+                                 repeat="indefinite"></a-animation>
+                </a-entity>
 
-            planets.forEach(p => {
-                // Orbit ring (semi-transparent)
-                const ringGeo = new THREE.RingGeometry(p.radius - 0.1, p.radius + 0.1, 128);
-                const ringMat = new THREE.MeshStandardMaterial({ color: 0x88aaff, side: THREE.DoubleSide, transparent: true, opacity: 0.15 });
-                const ring = new THREE.Mesh(ringGeo, ringMat);
-                ring.rotation.x = Math.PI / 2; // horizontal
-                markerRoot.add(ring);
+                <!-- Some stars for effect (small particles) -->
+                <a-entity position="0 0 0">
+                    <a-sphere radius="0.02" color="#fff" position="0.5 0.3 0.5"></a-sphere>
+                    <a-sphere radius="0.02" color="#fff" position="-0.4 0.5 0.6"></a-sphere>
+                    <a-sphere radius="0.02" color="#fff" position="0.3 -0.2 1.0"></a-sphere>
+                    <a-sphere radius="0.02" color="#fff" position="-0.6 0.1 0.8"></a-sphere>
+                    <a-sphere radius="0.02" color="#fff" position="0.8 0.4 -0.3"></a-sphere>
+                    <a-sphere radius="0.02" color="#fff" position="-0.3 -0.4 1.2"></a-sphere>
+                </a-entity>
 
-                // Planet sphere
-                const geo = new THREE.SphereGeometry(p.size, 64, 64);
-                const mat = new THREE.MeshStandardMaterial({ color: p.color, roughness: 0.3 });
-                new THREE.TextureLoader().load(p.tex, (tex) => {
-                    mat.map = tex;
-                    mat.needsUpdate = true;
-                }, undefined, () => {});
-                const planet = new THREE.Mesh(geo, mat);
-                planet.userData = { radius: p.radius, speed: p.speed, angle: Math.random() * Math.PI * 2 };
-                markerRoot.add(planet);
-                planetMeshes.push(planet);
+            </a-entity> <!-- /solar-system -->
+        </a-marker>
 
-                // Saturn's ring
-                if (p.ring) {
-                    const ringSatGeo = new THREE.TorusGeometry(p.size * 1.6, 0.04, 16, 64);
-                    const ringSatMat = new THREE.MeshStandardMaterial({ color: 0xc2b280, side: THREE.DoubleSide });
-                    const ringSat = new THREE.Mesh(ringSatGeo, ringSatMat);
-                    ringSat.rotation.x = Math.PI / 2;
-                    ringSat.rotation.z = 0.3;
-                    planet.add(ringSat);
-                }
-            });
+    </a-scene>
 
-            // Stars for ambiance (tiny spheres)
-            const starsGeo = new THREE.BufferGeometry();
-            const starsPos = [];
-            for (let i = 0; i < 300; i++) {
-                const r = 10 + Math.random() * 20;
-                const theta = Math.random() * Math.PI * 2;
-                const phi = Math.acos(2 * Math.random() - 1);
-                const x = r * Math.sin(phi) * Math.cos(theta);
-                const y = r * Math.sin(phi) * Math.sin(theta);
-                const z = r * Math.cos(phi);
-                starsPos.push(x, y, z);
-            }
-            starsGeo.setAttribute('position', new THREE.Float32BufferAttribute(starsPos, 3));
-            const starsMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.05 });
-            const stars = new THREE.Points(starsGeo, starsMat);
-            markerRoot.add(stars);
-
-            // --- 7. TOUCH INTERACTIONS (scale and move the whole markerRoot) ---
-            let initialDistance = null;
-            let initialScale = 1;
-            let touchStartPos = null;
-            let initialObjPos = null;
-            const moveSpeed = 0.01;
-
-            renderer.domElement.addEventListener('touchstart', (e) => {
-                if (e.touches.length === 2) {
-                    const dx = e.touches[0].pageX - e.touches[1].pageX;
-                    const dy = e.touches[0].pageY - e.touches[1].pageY;
-                    initialDistance = Math.sqrt(dx*dx + dy*dy);
-                    initialScale = markerRoot.scale.x;
-                    e.preventDefault();
-                } else if (e.touches.length === 1) {
-                    touchStartPos = new THREE.Vector2(e.touches[0].pageX, e.touches[0].pageY);
-                    initialObjPos = markerRoot.position.clone();
-                    e.preventDefault();
-                }
-            }, { passive: false });
-
-            renderer.domElement.addEventListener('touchmove', (e) => {
-                if (e.touches.length === 2 && initialDistance) {
-                    const dx = e.touches[0].pageX - e.touches[1].pageX;
-                    const dy = e.touches[0].pageY - e.touches[1].pageY;
-                    const distance = Math.sqrt(dx*dx + dy*dy);
-                    const scale = initialScale * (distance / initialDistance);
-                    markerRoot.scale.set(scale, scale, scale);
-                    e.preventDefault();
-                } else if (e.touches.length === 1 && touchStartPos && initialObjPos) {
-                    const currentPos = new THREE.Vector2(e.touches[0].pageX, e.touches[0].pageY);
-                    const deltaX = (currentPos.x - touchStartPos.x) * moveSpeed;
-                    const deltaY = (currentPos.y - touchStartPos.y) * moveSpeed;
-                    
-                    markerRoot.position.x = initialObjPos.x + deltaX;
-                    markerRoot.position.y = initialObjPos.y - deltaY; // Y is up, but drag up moves model down? we keep natural.
-                    e.preventDefault();
-                }
-            }, { passive: false });
-
-            renderer.domElement.addEventListener('touchend', () => {
-                initialDistance = null;
-                touchStartPos = null;
-            });
-
-            // Double-tap to reset position and scale
-            renderer.domElement.addEventListener('dblclick', () => {
-                markerRoot.position.set(0, 0, 0);
-                markerRoot.scale.set(1, 1, 1);
-            });
-
-            document.getElementById('reset-btn').addEventListener('click', () => {
-                markerRoot.position.set(0, 0, 0);
-                markerRoot.scale.set(1, 1, 1);
-            });
-
-            // --- 8. ANIMATION LOOP (orbit and rotation) ---
-            function animate() {
-                requestAnimationFrame(animate);
-
-                if (arToolkitSource.ready) {
-                    arToolkitContext.update(arToolkitSource.domElement);
-                }
-
-                // Rotate planets on axis
-                planetMeshes.forEach(p => {
-                    p.rotation.y += 0.005;
-                });
-                sun.rotation.y += 0.001;
-
-                // Orbit around sun
-                planetMeshes.forEach(p => {
-                    const data = p.userData;
-                    data.angle += data.speed * 0.015; // speed factor
-                    const r = data.radius;
-                    p.position.x = Math.cos(data.angle) * r;
-                    p.position.z = Math.sin(data.angle) * r;
-                });
-
-                renderer.render(scene, camera);
-            }
-
-            animate();
-        })();
-    </script>
+    <!-- Explanation of steps -->
+    <div style="position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.5); color: white; padding: 5px; border-radius: 5px; font-size: 12px; z-index: 1000;">
+        Steps: ① Print Hiro marker ② Open this page on phone ③ Point at marker
+    </div>
 </body>
 </html>
