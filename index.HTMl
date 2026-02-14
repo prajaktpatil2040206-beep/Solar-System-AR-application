@@ -3,82 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>AR Solar System – Textured Planets & Horizontal Orientation</title>
+    <title>🌍 AR Solar System on QR Code</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; touch-action: none; background: black; }
-        #video-bg {
-            position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            object-fit: cover;
-            z-index: 0;
-            pointer-events: none;
-        }
-        #canvas-container {
-            position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            z-index: 1;
-            pointer-events: none;
-        }
-        #status {
+        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
+        #info {
             position: absolute;
             bottom: 30px;
-            left: 20px; right: 20px;
+            left: 0; right: 0;
             text-align: center;
             color: white;
             background: rgba(0,0,0,0.6);
             backdrop-filter: blur(8px);
-            padding: 12px 20px;
+            padding: 12px 24px;
             border-radius: 40px;
             width: fit-content;
             margin: 0 auto;
-            z-index: 2;
-            font-size: 16px;
-            border: 1px solid rgba(255,255,255,0.2);
+            z-index: 10;
+            border: 1px solid #ffffff33;
             pointer-events: none;
         }
-        #permission-btn {
+        #reset-btn {
             position: absolute;
             top: 20px;
             right: 20px;
-            z-index: 3;
+            z-index: 10;
             background: #1e2a3a;
             color: white;
             border: 2px solid #4aa3ff;
-            border-radius: 40px;
-            padding: 12px 24px;
-            font-size: 16px;
-            font-weight: bold;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-            display: none;
-            cursor: pointer;
-            pointer-events: auto;
-        }
-        #hint {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            z-index: 2;
-            background: rgba(0,0,0,0.5);
-            backdrop-filter: blur(5px);
-            color: #ffd966;
-            padding: 8px 18px;
-            border-radius: 40px;
-            font-size: 14px;
-            border: 1px solid #ffd96655;
-            pointer-events: none;
-        }
-        #recenter-btn {
-            position: absolute;
-            bottom: 100px;
-            left: 20px;
-            z-index: 3;
-            background: rgba(30,40,60,0.9);
-            backdrop-filter: blur(8px);
-            color: white;
-            border: 1px solid #4aa3ff;
             border-radius: 40px;
             padding: 12px 24px;
             font-size: 16px;
@@ -90,298 +41,242 @@
     </style>
 </head>
 <body>
-    <video id="video-bg" autoplay playsinline></video>
-    <div id="canvas-container"></div>
-    <div id="hint">🌌 AR Solar System • Horizontal • Pinch to zoom • Drag to move</div>
-    <button id="permission-btn">🔘 Enable Motion Sensors</button>
-    <button id="recenter-btn">🎯 Recenter</button>
-    <div id="status">🌀 Initializing camera & sensors...</div>
+    <div id="info">📱 Point camera at <strong>HIRO marker</strong> → Solar system appears.<br>👆 Pinch to zoom • Drag to move • Double‑tap to reset</div>
+    <button id="reset-btn">🎯 Reset position</button>
 
-    <!-- Import Three.js -->
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://unpkg.com/three@0.128.0/build/three.module.js"
-            }
-        }
-    </script>
+    <!-- Three.js & AR.js -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ar.js@3.3.2/three.js/build/ar-threex.js"></script>
 
-    <script type="module">
-        import * as THREE from 'three';
+    <script>
+        (function() {
+            // --- 1. SETUP SCENE, CAMERA, RENDERER (transparent) ---
+            const scene = new THREE.Scene();
+            const camera = new THREE.Camera();
+            scene.add(camera);
 
-        // --- 1. Camera feed (rear camera) ---
-        const video = document.getElementById('video-bg');
-        async function startCamera() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
-                    audio: false 
-                });
-                video.srcObject = stream;
-                await video.play();
-                document.getElementById('status').innerHTML = '📷 Camera active • waiting for sensors...';
-            } catch (err) {
-                document.getElementById('status').innerHTML = '❌ Camera access denied';
-            }
-        }
-        startCamera();
-
-        // --- 2. Three.js setup (transparent) ---
-        const container = document.getElementById('canvas-container');
-        const scene = new THREE.Scene();
-        scene.background = null; // transparent
-
-        const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(0, 0, 0); // camera at origin
-
-        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        renderer.setClearColor(0x000000, 0); // fully transparent
-        container.appendChild(renderer.domElement);
-
-        // --- 3. Lighting ---
-        const ambientLight = new THREE.AmbientLight(0x404060);
-        scene.add(ambientLight);
-
-        // Sun light (point light at sun position)
-        const sunLight = new THREE.PointLight(0xffeedd, 2, 0, 0);
-        sunLight.position.set(0, 0, 0);
-        scene.add(sunLight);
-
-        const dirLight = new THREE.DirectionalLight(0xffffff, 1);
-        dirLight.position.set(1, 2, 3);
-        scene.add(dirLight);
-
-        // --- 4. AR Group: everything will be inside this group ---
-        const arGroup = new THREE.Group();
-        scene.add(arGroup);
-        arGroup.position.set(0, 0, -7); // 7 meters in front
-
-        // --- 5. Helper function to load textures with fallback color ---
-        function loadTextureWithFallback(path, color, callback) {
-            const loader = new THREE.TextureLoader();
-            return loader.load(path, 
-                (texture) => { if (callback) callback(texture); },
-                undefined,
-                (err) => { console.warn(`Texture ${path} failed to load, using color.`, err); }
-            );
-        }
-
-        // --- 6. Create planets (using textures from the provided model, with fallback colors) ---
-        // Data: name, texture path, color, size, orbit radius, speed
-        const planetsData = [
-            { name: 'mercury', tex: 'img/mercury_hd.jpg', color: 0xaaaaaa, size: 0.4, radius: 5, speed: 2.0 },
-            { name: 'venus',   tex: 'img/venus_hd.jpg',   color: 0xffcc88, size: 0.6, radius: 6, speed: 1.5 },
-            { name: 'earth',   tex: 'img/earth_hd.jpg',   color: 0x2288ff, size: 0.7, radius: 7, speed: 1.2 },
-            { name: 'mars',    tex: 'img/mars_hd.jpg',    color: 0xff6633, size: 0.6, radius: 8, speed: 1.0 },
-            { name: 'jupiter', tex: 'img/jupiter_hd.jpg', color: 0xddbb99, size: 1.4, radius: 10, speed: 0.7 },
-            { name: 'saturn',  tex: 'img/saturn_hd.jpg',  color: 0xeeddbb, size: 1.2, radius: 12, speed: 0.6 },
-            { name: 'uranus',  tex: 'img/uranus_hd.jpg',  color: 0x88ccff, size: 1.0, radius: 14, speed: 0.5 },
-            { name: 'neptune', tex: 'img/neptune_hd.jpg', color: 0x3366ff, size: 0.9, radius: 16, speed: 0.4 }
-        ];
-
-        const planetMeshes = [];
-
-        // Sun (with texture if available)
-        const sunGeo = new THREE.SphereGeometry(2.5, 64, 64);
-        const sunMat = new THREE.MeshStandardMaterial({ 
-            color: 0xffaa33,
-            emissive: 0xff5500,
-            emissiveIntensity: 1.2,
-            roughness: 0.2
-        });
-        // Try to load sun texture
-        new THREE.TextureLoader().load('img/sun_hd.jpg', (tex) => {
-            sunMat.map = tex;
-            sunMat.needsUpdate = true;
-        }, undefined, () => {});
-        const sun = new THREE.Mesh(sunGeo, sunMat);
-        sun.position.set(0, 0, 0);
-        arGroup.add(sun);
-
-        // Create orbit rings and planets
-        planetsData.forEach(p => {
-            // Orbit ring (semi-transparent)
-            const ringGeo = new THREE.RingGeometry(p.radius - 0.1, p.radius + 0.1, 128);
-            const ringMat = new THREE.MeshStandardMaterial({ color: 0x88aaff, side: THREE.DoubleSide, transparent: true, opacity: 0.15 });
-            const ring = new THREE.Mesh(ringGeo, ringMat);
-            ring.rotation.x = Math.PI / 2; // horizontal
-            arGroup.add(ring);
-
-            // Planet sphere
-            const geo = new THREE.SphereGeometry(p.size, 64, 64);
-            const mat = new THREE.MeshStandardMaterial({ 
-                color: p.color,
-                roughness: 0.3,
-                metalness: 0.1
-            });
-            // Load texture if available
-            new THREE.TextureLoader().load(p.tex, (tex) => {
-                mat.map = tex;
-                mat.needsUpdate = true;
-            }, undefined, () => {});
-            
-            const planet = new THREE.Mesh(geo, mat);
-            planet.userData = { radius: p.radius, speed: p.speed, angle: Math.random() * Math.PI * 2 };
-            arGroup.add(planet);
-            planetMeshes.push(planet);
-
-            // Add ring for Saturn
-            if (p.name === 'saturn') {
-                const ringSatGeo = new THREE.TorusGeometry(p.size * 1.6, 0.15, 16, 64);
-                const ringSatMat = new THREE.MeshStandardMaterial({ color: 0xc2b280, side: THREE.DoubleSide });
-                const ringSat = new THREE.Mesh(ringSatGeo, ringSatMat);
-                ringSat.rotation.x = Math.PI / 2;
-                ringSat.rotation.z = 0.3;
-                planet.add(ringSat);
-            }
-        });
-
-        // --- 7. Device Orientation handling (gyroscope + accelerometer) ---
-        let orientationAvailable = false;
-        const statusEl = document.getElementById('status');
-        const orientBtn = document.getElementById('permission-btn');
-
-        const targetQuat = new THREE.Quaternion();
-
-        function handleOrientation(event) {
-            if (event.alpha === null || event.beta === null || event.gamma === null) return;
-            
-            const degToRad = Math.PI / 180;
-            const alpha = event.alpha * degToRad;
-            const beta = event.beta * degToRad;
-            const gamma = event.gamma * degToRad;
-
-            // Standard mapping: yaw around Y, pitch around X, roll around Z
-            const qYaw = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -alpha);
-            const qPitch = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -beta);
-            const qRoll = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), gamma);
-            
-            const rawQuat = qYaw.clone().multiply(qPitch).multiply(qRoll);
-            
-            if (!orientationAvailable) {
-                targetQuat.copy(rawQuat);
-                orientationAvailable = true;
-                statusEl.innerHTML = '🟢 Sensors active • system is horizontal';
-                orientBtn.style.display = 'none';
-            } else {
-                targetQuat.slerp(rawQuat, 0.15);
-            }
-            
-            // Apply inverse to the group so the system appears fixed in world
-            arGroup.quaternion.copy(targetQuat).invert();
-        }
-
-        // iOS permission
-        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-            orientBtn.style.display = 'block';
-            orientBtn.addEventListener('click', () => {
-                DeviceOrientationEvent.requestPermission()
-                    .then(response => {
-                        if (response === 'granted') {
-                            window.addEventListener('deviceorientation', handleOrientation);
-                            statusEl.innerHTML = '🟢 Sensors enabled';
-                        } else {
-                            statusEl.innerHTML = '❌ Sensor permission denied';
-                        }
-                    })
-                    .catch(console.error);
-            });
-        } else {
-            window.addEventListener('deviceorientation', handleOrientation);
-            orientBtn.style.display = 'none';
-        }
-
-        setTimeout(() => {
-            if (!orientationAvailable) {
-                statusEl.innerHTML = '⚠️ No orientation data (sensors missing?)';
-            }
-        }, 4000);
-
-        // --- 8. Touch interactions: pinch to scale, one-finger drag to move ---
-        let initialDistance = null;
-        let initialScale = 1;
-        let touchStartPos = null;
-        let initialObjPos = null;
-        const moveSpeed = 0.012;
-
-        container.addEventListener('touchstart', (e) => {
-            if (e.touches.length === 2) {
-                const dx = e.touches[0].pageX - e.touches[1].pageX;
-                const dy = e.touches[0].pageY - e.touches[1].pageY;
-                initialDistance = Math.sqrt(dx*dx + dy*dy);
-                initialScale = arGroup.scale.x;
-                e.preventDefault();
-            } else if (e.touches.length === 1) {
-                touchStartPos = new THREE.Vector2(e.touches[0].pageX, e.touches[0].pageY);
-                initialObjPos = arGroup.position.clone();
-                e.preventDefault();
-            }
-        }, { passive: false });
-
-        container.addEventListener('touchmove', (e) => {
-            if (e.touches.length === 2 && initialDistance) {
-                const dx = e.touches[0].pageX - e.touches[1].pageX;
-                const dy = e.touches[0].pageY - e.touches[1].pageY;
-                const distance = Math.sqrt(dx*dx + dy*dy);
-                const scale = initialScale * (distance / initialDistance);
-                arGroup.scale.set(scale, scale, scale);
-                e.preventDefault();
-            } else if (e.touches.length === 1 && touchStartPos && initialObjPos) {
-                const currentPos = new THREE.Vector2(e.touches[0].pageX, e.touches[0].pageY);
-                const deltaX = (currentPos.x - touchStartPos.x) * moveSpeed;
-                const deltaY = (currentPos.y - touchStartPos.y) * moveSpeed;
-                
-                arGroup.position.x = initialObjPos.x + deltaX;
-                arGroup.position.y = initialObjPos.y - deltaY;
-                e.preventDefault();
-            }
-        }, { passive: false });
-
-        container.addEventListener('touchend', () => {
-            initialDistance = null;
-            touchStartPos = null;
-        });
-
-        // Recenter button
-        document.getElementById('recenter-btn').addEventListener('click', () => {
-            arGroup.position.set(0, 0, -7);
-            arGroup.scale.set(1, 1, 1);
-        });
-
-        // --- 9. Animation: revolution and rotation ---
-        function animate() {
-            requestAnimationFrame(animate);
-
-            // Rotate planets around own axis
-            planetMeshes.forEach(planet => {
-                planet.rotation.y += 0.005;
-            });
-            sun.rotation.y += 0.001;
-
-            // Revolution around sun
-            planetMeshes.forEach(planet => {
-                const data = planet.userData;
-                data.angle += data.speed * 0.008;
-                const r = data.radius;
-                planet.position.x = Math.cos(data.angle) * r;
-                planet.position.z = Math.sin(data.angle) * r;
-            });
-
-            // Update sun light position (follows group)
-            sunLight.position.copy(arGroup.position);
-
-            renderer.render(scene, camera);
-        }
-        animate();
-
-        // --- 10. Window resize ---
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
+            const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setClearColor(new THREE.Color(0x000000), 0);
             renderer.setSize(window.innerWidth, window.innerHeight);
-        });
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            document.body.appendChild(renderer.domElement);
+
+            // --- 2. AR TOOLKIT SOURCE (camera) ---
+            const arToolkitSource = new THREEx.ArToolkitSource({
+                sourceType: 'webcam',
+                deviceId: null,
+            });
+
+            function onResize() {
+                arToolkitSource.onResize();
+                arToolkitSource.copySizeTo(renderer.domElement);
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+
+            arToolkitSource.init(() => {
+                onResize();
+            });
+
+            window.addEventListener('resize', onResize);
+
+            // --- 3. AR TOOLKIT CONTEXT (marker detection) ---
+            const arToolkitContext = new THREEx.ArToolkitContext({
+                cameraParametersUrl: 'https://cdn.jsdelivr.net/npm/ar.js@3.3.2/three.js/data/camera_para.dat',
+                detectionMode: 'mono',
+                maxDetectionRate: 30,
+                canvasWidth: 640,
+                canvasHeight: 480,
+            });
+
+            arToolkitContext.init(() => {
+                camera.projectionMatrix.copy(arToolkitContext.getProjectionMatrix());
+            });
+
+            // --- 4. MARKER ROOT (everything inside moves with marker) ---
+            const markerRoot = new THREE.Group();
+            scene.add(markerRoot);
+
+            const markerControls = new THREEx.ArMarkerControls(arToolkitContext, markerRoot, {
+                type: 'pattern',
+                patternUrl: 'https://cdn.jsdelivr.net/npm/ar.js@3.3.2/three.js/data/patt.hiro',
+                changeMatrixMode: 'modelViewMatrix'
+            });
+
+            // --- 5. LIGHTING ---
+            const ambient = new THREE.AmbientLight(0x404060);
+            markerRoot.add(ambient);
+
+            const sunLight = new THREE.PointLight(0xffeedd, 2, 30);
+            sunLight.position.set(0, 0, 0);
+            markerRoot.add(sunLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+            dirLight.position.set(1, 2, 3);
+            markerRoot.add(dirLight);
+
+            // --- 6. CREATE THE SOLAR SYSTEM (horizontal) ---
+            // Sun (emissive)
+            const sunGeo = new THREE.SphereGeometry(0.8, 64, 64);
+            const sunMat = new THREE.MeshStandardMaterial({
+                color: 0xffaa33,
+                emissive: 0xff5500,
+                emissiveIntensity: 1.2,
+                roughness: 0.2
+            });
+            // Try to load sun texture (optional)
+            new THREE.TextureLoader().load('img/sun_hd.jpg', (tex) => {
+                sunMat.map = tex;
+                sunMat.needsUpdate = true;
+            }, undefined, () => {});
+            const sun = new THREE.Mesh(sunGeo, sunMat);
+            markerRoot.add(sun);
+
+            // Planet data: [radius, size, color, texturePath, speed]
+            const planets = [
+                { radius: 1.8, size: 0.15, color: 0xaaaaaa, tex: 'img/mercury_hd.jpg', speed: 0.02 },
+                { radius: 2.4, size: 0.18, color: 0xffcc88, tex: 'img/venus_hd.jpg',   speed: 0.015 },
+                { radius: 3.0, size: 0.2,  color: 0x2288ff, tex: 'img/earth_hd.jpg',   speed: 0.012 },
+                { radius: 3.6, size: 0.17, color: 0xff6633, tex: 'img/mars_hd.jpg',    speed: 0.01 },
+                { radius: 4.5, size: 0.4,  color: 0xddbb99, tex: 'img/jupiter_hd.jpg', speed: 0.007 },
+                { radius: 5.4, size: 0.35, color: 0xeeddbb, tex: 'img/saturn_hd.jpg',  speed: 0.005, ring: true },
+                { radius: 6.3, size: 0.3,  color: 0x88ccff, tex: 'img/uranus_hd.jpg',  speed: 0.004 },
+                { radius: 7.2, size: 0.28, color: 0x3366ff, tex: 'img/neptune_hd.jpg', speed: 0.003 }
+            ];
+
+            const planetMeshes = [];
+
+            planets.forEach(p => {
+                // Orbit ring (semi-transparent)
+                const ringGeo = new THREE.RingGeometry(p.radius - 0.1, p.radius + 0.1, 128);
+                const ringMat = new THREE.MeshStandardMaterial({ color: 0x88aaff, side: THREE.DoubleSide, transparent: true, opacity: 0.15 });
+                const ring = new THREE.Mesh(ringGeo, ringMat);
+                ring.rotation.x = Math.PI / 2; // horizontal
+                markerRoot.add(ring);
+
+                // Planet sphere
+                const geo = new THREE.SphereGeometry(p.size, 64, 64);
+                const mat = new THREE.MeshStandardMaterial({ color: p.color, roughness: 0.3 });
+                new THREE.TextureLoader().load(p.tex, (tex) => {
+                    mat.map = tex;
+                    mat.needsUpdate = true;
+                }, undefined, () => {});
+                const planet = new THREE.Mesh(geo, mat);
+                planet.userData = { radius: p.radius, speed: p.speed, angle: Math.random() * Math.PI * 2 };
+                markerRoot.add(planet);
+                planetMeshes.push(planet);
+
+                // Saturn's ring
+                if (p.ring) {
+                    const ringSatGeo = new THREE.TorusGeometry(p.size * 1.6, 0.04, 16, 64);
+                    const ringSatMat = new THREE.MeshStandardMaterial({ color: 0xc2b280, side: THREE.DoubleSide });
+                    const ringSat = new THREE.Mesh(ringSatGeo, ringSatMat);
+                    ringSat.rotation.x = Math.PI / 2;
+                    ringSat.rotation.z = 0.3;
+                    planet.add(ringSat);
+                }
+            });
+
+            // Stars for ambiance (tiny spheres)
+            const starsGeo = new THREE.BufferGeometry();
+            const starsPos = [];
+            for (let i = 0; i < 300; i++) {
+                const r = 10 + Math.random() * 20;
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos(2 * Math.random() - 1);
+                const x = r * Math.sin(phi) * Math.cos(theta);
+                const y = r * Math.sin(phi) * Math.sin(theta);
+                const z = r * Math.cos(phi);
+                starsPos.push(x, y, z);
+            }
+            starsGeo.setAttribute('position', new THREE.Float32BufferAttribute(starsPos, 3));
+            const starsMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.05 });
+            const stars = new THREE.Points(starsGeo, starsMat);
+            markerRoot.add(stars);
+
+            // --- 7. TOUCH INTERACTIONS (scale and move the whole markerRoot) ---
+            let initialDistance = null;
+            let initialScale = 1;
+            let touchStartPos = null;
+            let initialObjPos = null;
+            const moveSpeed = 0.01;
+
+            renderer.domElement.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 2) {
+                    const dx = e.touches[0].pageX - e.touches[1].pageX;
+                    const dy = e.touches[0].pageY - e.touches[1].pageY;
+                    initialDistance = Math.sqrt(dx*dx + dy*dy);
+                    initialScale = markerRoot.scale.x;
+                    e.preventDefault();
+                } else if (e.touches.length === 1) {
+                    touchStartPos = new THREE.Vector2(e.touches[0].pageX, e.touches[0].pageY);
+                    initialObjPos = markerRoot.position.clone();
+                    e.preventDefault();
+                }
+            }, { passive: false });
+
+            renderer.domElement.addEventListener('touchmove', (e) => {
+                if (e.touches.length === 2 && initialDistance) {
+                    const dx = e.touches[0].pageX - e.touches[1].pageX;
+                    const dy = e.touches[0].pageY - e.touches[1].pageY;
+                    const distance = Math.sqrt(dx*dx + dy*dy);
+                    const scale = initialScale * (distance / initialDistance);
+                    markerRoot.scale.set(scale, scale, scale);
+                    e.preventDefault();
+                } else if (e.touches.length === 1 && touchStartPos && initialObjPos) {
+                    const currentPos = new THREE.Vector2(e.touches[0].pageX, e.touches[0].pageY);
+                    const deltaX = (currentPos.x - touchStartPos.x) * moveSpeed;
+                    const deltaY = (currentPos.y - touchStartPos.y) * moveSpeed;
+                    
+                    markerRoot.position.x = initialObjPos.x + deltaX;
+                    markerRoot.position.y = initialObjPos.y - deltaY; // Y is up, but drag up moves model down? we keep natural.
+                    e.preventDefault();
+                }
+            }, { passive: false });
+
+            renderer.domElement.addEventListener('touchend', () => {
+                initialDistance = null;
+                touchStartPos = null;
+            });
+
+            // Double-tap to reset position and scale
+            renderer.domElement.addEventListener('dblclick', () => {
+                markerRoot.position.set(0, 0, 0);
+                markerRoot.scale.set(1, 1, 1);
+            });
+
+            document.getElementById('reset-btn').addEventListener('click', () => {
+                markerRoot.position.set(0, 0, 0);
+                markerRoot.scale.set(1, 1, 1);
+            });
+
+            // --- 8. ANIMATION LOOP (orbit and rotation) ---
+            function animate() {
+                requestAnimationFrame(animate);
+
+                if (arToolkitSource.ready) {
+                    arToolkitContext.update(arToolkitSource.domElement);
+                }
+
+                // Rotate planets on axis
+                planetMeshes.forEach(p => {
+                    p.rotation.y += 0.005;
+                });
+                sun.rotation.y += 0.001;
+
+                // Orbit around sun
+                planetMeshes.forEach(p => {
+                    const data = p.userData;
+                    data.angle += data.speed * 0.015; // speed factor
+                    const r = data.radius;
+                    p.position.x = Math.cos(data.angle) * r;
+                    p.position.z = Math.sin(data.angle) * r;
+                });
+
+                renderer.render(scene, camera);
+            }
+
+            animate();
+        })();
     </script>
 </body>
 </html>
