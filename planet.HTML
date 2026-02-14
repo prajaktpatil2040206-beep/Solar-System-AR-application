@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>AR Solar System – Live Camera + Sensors + Touch</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            touch-action: none; /* prevent browser scroll/pinch */
+            background: black;
+        }
+        #video-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 0;
+            pointer-events: none;
+        }
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: none; /* canvas does not block touches */
+        }
+        #status {
+            position: absolute;
+            bottom: 30px;
+            left: 20px;
+            right: 20px;
+            text-align: center;
+            color: white;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(8px);
+            padding: 12px 20px;
+            border-radius: 40px;
+            width: fit-content;
+            margin: 0 auto;
+            z-index: 2;
+            font-size: 16px;
+            border: 1px solid rgba(255,255,255,0.2);
+            pointer-events: none;
+        }
+        #permission-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 3;
+            background: #1e2a3a;
+            color: white;
+            border: 2px solid #4aa3ff;
+            border-radius: 40px;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            display: none;
+            cursor: pointer;
+            pointer-events: auto;
+        }
+        #hint {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 2;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(5px);
+            color: #ffd966;
+            padding: 8px 18px;
+            border-radius: 40px;
+            font-size: 14px;
+            border: 1px solid #ffd96655;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <video id="video-bg" autoplay playsinline></video>
+    <div id="canvas-container"></div>
+    <div id="hint">🌌 AR Solar System • Pinch to zoom • Drag to move</div>
+    <button id="permission-btn">🔘 Enable Motion Sensors</button>
+    <div id="status">🌀 Initializing camera & sensors...</div>
+
+    <!-- Import Three.js -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.128.0/build/three.module.js"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+
+        // --- 1. Camera feed (rear camera) ---
+        const video = document.getElementById('video-bg');
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
+                    audio: false 
+                });
+                video.srcObject = stream;
+                await video.play();
+                document.getElementById('status').innerHTML = '📷 Camera active • waiting for sensors...';
+            } catch (err) {
+                document.getElementById('status').innerHTML = '❌ Camera access denied';
+            }
+        }
+        startCamera();
+
+        // --- 2. Three.js setup (transparent) ---
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        scene.background = null; // transparent
+
+        const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 0, 0); // camera at origin, we'll move the world
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setClearColor(0x000000, 0); // fully transparent
+        container.appendChild(renderer.domElement);
+
+        // --- 3. Lighting ---
+        const ambientLight = new THREE.AmbientLight(0x404060); // soft light
+        scene.add(ambientLight);
+
+        // Sun light (point light at sun position)
+        const sunLight = new THREE.PointLight(0xffeedd, 2, 0, 0);
+        sunLight.position.set(0, 0, 0);
+        scene.add(sunLight);
+
+        // Additional directional light to highlight planets
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+        dirLight.position.set(1, 2, 3);
+        scene.add(dirLight);
+
+        // --- 4. AR Group: everything will be inside this group ---
+        const arGroup = new THREE.Group();
+        scene.add(arGroup);
+
+        // Place the solar system 7 meters in front of the camera
+        arGroup.position.set(0, 0, -7);
+
+        // --- 5. Create the Solar System (planets as colored spheres with orbits) ---
+        // Planet data: name, color, size, orbit radius, speed (revolution factor)
+        const planetsData = [
+            { name: 'mercury', color: 0xaaaaaa, size: 0.4, radius: 5, speed: 2.0 },
+            { name: 'venus',   color: 0xffcc88, size: 0.6, radius: 6, speed: 1.5 },
+            { name: 'earth',   color: 0x2288ff, size: 0.7, radius: 7, speed: 1.2 },
+            { name: 'mars',    color: 0xff6633, size: 0.6, radius: 8, speed: 1.0 },
+            { name: 'jupiter', color: 0xddbb99, size: 1.4, radius: 10, speed: 0.7 },
+            { name: 'saturn',  color: 0xeeddbb, size: 1.2, radius: 12, speed: 0.6 },
+            { name: 'uranus',  color: 0x88ccff, size: 1.0, radius: 14, speed: 0.5 },
+            { name: 'neptune', color: 0x3366ff, size: 0.9, radius: 16, speed: 0.4 }
+        ];
+
+        // Store planet meshes for animation
+        const planetMeshes = [];
+
+        // Create the Sun (emissive)
+        const sunGeo = new THREE.SphereGeometry(2.5, 64, 64);
+        const sunMat = new THREE.MeshStandardMaterial({ 
+            color: 0xffaa33, 
+            emissive: 0xff5500, 
+            emissiveIntensity: 1.2,
+            roughness: 0.2
+        });
+        const sun = new THREE.Mesh(sunGeo, sunMat);
+        sun.position.set(0, 0, 0);
+        arGroup.add(sun);
+
+        // Create orbits (transparent rings) and planets
+        planetsData.forEach(p => {
+            // Orbit ring (visual guide)
+            const ringGeo = new THREE.RingGeometry(p.radius - 0.1, p.radius + 0.1, 128);
+            const ringMat = new THREE.MeshStandardMaterial({ color: 0x88aaff, side: THREE.DoubleSide, transparent: true, opacity: 0.2 });
+            const ring = new THREE.Mesh(ringGeo, ringMat);
+            ring.rotation.x = Math.PI / 2;
+            arGroup.add(ring);
+
+            // Planet
+            const geo = new THREE.SphereGeometry(p.size, 48, 48);
+            const mat = new THREE.MeshStandardMaterial({ color: p.color, roughness: 0.3, metalness: 0.1 });
+            const planet = new THREE.Mesh(geo, mat);
+            planet.userData = { radius: p.radius, speed: p.speed, angle: Math.random() * Math.PI * 2 };
+            arGroup.add(planet);
+            planetMeshes.push(planet);
+
+            // Add a ring for Saturn (special)
+            if (p.name === 'saturn') {
+                const ringSatGeo = new THREE.TorusGeometry(p.size * 1.6, 0.15, 16, 64);
+                const ringSatMat = new THREE.MeshStandardMaterial({ color: 0xc2b280, side: THREE.DoubleSide });
+                const ringSat = new THREE.Mesh(ringSatGeo, ringSatMat);
+                ringSat.rotation.x = Math.PI / 2;
+                ringSat.rotation.z = 0.3;
+                planet.add(ringSat); // attach to saturn so it moves with it
+            }
+        });
+
+        // --- 6. Device Orientation handling (gyroscope + accelerometer) ---
+        let orientationAvailable = false;
+        const statusEl = document.getElementById('status');
+        const orientBtn = document.getElementById('permission-btn');
+
+        // Target quaternion for the group (inverse of device orientation)
+        const targetQuat = new THREE.Quaternion();
+
+        function handleOrientation(event) {
+            if (event.alpha === null || event.beta === null || event.gamma === null) return;
+            
+            const degToRad = Math.PI / 180;
+            const alpha = event.alpha * degToRad; // z-axis rotation (0-360)
+            const beta = event.beta * degToRad;   // x-axis tilt (-180 to 180)
+            const gamma = event.gamma * degToRad;  // y-axis tilt (-90 to 90)
+
+            // Build quaternion from device orientation (standard: yaw around Y, pitch around X, roll around Z)
+            const qYaw = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -alpha);
+            const qPitch = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -beta);
+            const qRoll = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), gamma);
+            
+            // Compose: yaw * pitch * roll (order matters)
+            const rawQuat = qYaw.clone().multiply(qPitch).multiply(qRoll);
+            
+            // Smooth with slerp
+            if (!orientationAvailable) {
+                targetQuat.copy(rawQuat);
+                orientationAvailable = true;
+                statusEl.innerHTML = '🟢 Sensors active • move phone to explore';
+                orientBtn.style.display = 'none';
+            } else {
+                targetQuat.slerp(rawQuat, 0.15);
+            }
+            
+            // Apply inverse to the group so that the system appears fixed in world
+            arGroup.quaternion.copy(targetQuat).invert();
+        }
+
+        // iOS 13+ permission
+        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+            orientBtn.style.display = 'block';
+            orientBtn.addEventListener('click', () => {
+                DeviceOrientationEvent.requestPermission()
+                    .then(response => {
+                        if (response === 'granted') {
+                            window.addEventListener('deviceorientation', handleOrientation);
+                            statusEl.innerHTML = '🟢 Sensors enabled';
+                        } else {
+                            statusEl.innerHTML = '❌ Sensor permission denied';
+                        }
+                    })
+                    .catch(console.error);
+            });
+        } else {
+            window.addEventListener('deviceorientation', handleOrientation);
+            orientBtn.style.display = 'none';
+        }
+
+        // Fallback if no orientation after 4s
+        setTimeout(() => {
+            if (!orientationAvailable) {
+                statusEl.innerHTML = '⚠️ No orientation data (sensors missing?)';
+            }
+        }, 4000);
+
+        // --- 7. Touch interactions: pinch to scale, one-finger drag to move ---
+        let initialDistance = null;
+        let initialScale = 1;
+        let touchStartPos = null;
+        let initialObjPos = null;
+        const moveSpeed = 0.012;
+
+        container.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 2) {
+                const dx = e.touches[0].pageX - e.touches[1].pageX;
+                const dy = e.touches[0].pageY - e.touches[1].pageY;
+                initialDistance = Math.sqrt(dx*dx + dy*dy);
+                initialScale = arGroup.scale.x;
+                e.preventDefault();
+            } else if (e.touches.length === 1) {
+                touchStartPos = new THREE.Vector2(e.touches[0].pageX, e.touches[0].pageY);
+                initialObjPos = arGroup.position.clone();
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        container.addEventListener('touchmove', (e) => {
+            if (e.touches.length === 2 && initialDistance) {
+                const dx = e.touches[0].pageX - e.touches[1].pageX;
+                const dy = e.touches[0].pageY - e.touches[1].pageY;
+                const distance = Math.sqrt(dx*dx + dy*dy);
+                const scale = initialScale * (distance / initialDistance);
+                arGroup.scale.set(scale, scale, scale);
+                e.preventDefault();
+            } else if (e.touches.length === 1 && touchStartPos && initialObjPos) {
+                const currentPos = new THREE.Vector2(e.touches[0].pageX, e.touches[0].pageY);
+                const deltaX = (currentPos.x - touchStartPos.x) * moveSpeed;
+                const deltaY = (currentPos.y - touchStartPos.y) * moveSpeed;
+                
+                // Move in world coordinates (camera at origin)
+                arGroup.position.x = initialObjPos.x + deltaX;
+                arGroup.position.y = initialObjPos.y - deltaY; // Y inverted because screen Y increases downward
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        container.addEventListener('touchend', () => {
+            initialDistance = null;
+            touchStartPos = null;
+        });
+
+        // --- 8. Animation: revolution and rotation of planets ---
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Rotate planets around their own axis
+            planetMeshes.forEach(planet => {
+                planet.rotation.y += 0.005;
+            });
+            sun.rotation.y += 0.001;
+
+            // Revolution around the sun (update positions relative to group)
+            planetMeshes.forEach(planet => {
+                const data = planet.userData;
+                data.angle += data.speed * 0.008; // speed factor
+                const r = data.radius;
+                planet.position.x = Math.cos(data.angle) * r;
+                planet.position.z = Math.sin(data.angle) * r;
+            });
+
+            // Update sun light position to follow group (sun is at group origin)
+            sunLight.position.copy(arGroup.position);
+
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // --- 9. Window resize ---
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
