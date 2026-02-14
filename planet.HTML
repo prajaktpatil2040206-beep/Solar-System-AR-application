@@ -3,355 +3,450 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>AR Solar System – Live Camera + Sensors + Touch</title>
+    <title>AR Solar System — Professional 3D</title>
+    
+    <!-- A-Frame & AR.js -->
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
+    
+    <!-- Optional: for better touch gestures (pinch zoom & pan) we extend A-Frame with extra components -->
+    <script src="https://unpkg.com/aframe-extras@6.1.1/dist/aframe-extras.min.js"></script>
+    
     <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            touch-action: none; /* prevent browser scroll/pinch */
-            background: black;
-        }
-        #video-bg {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            z-index: 0;
-            pointer-events: none;
-        }
-        #canvas-container {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 1;
-            pointer-events: none; /* canvas does not block touches */
-        }
-        #status {
+        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+        
+        /* AR info tip */
+        .ar-tip {
             position: absolute;
             bottom: 30px;
-            left: 20px;
-            right: 20px;
+            left: 0;
+            right: 0;
             text-align: center;
             color: white;
             background: rgba(0,0,0,0.6);
-            backdrop-filter: blur(8px);
-            padding: 12px 20px;
-            border-radius: 40px;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            padding: 12px 24px;
+            border-radius: 60px;
             width: fit-content;
             margin: 0 auto;
-            z-index: 2;
-            font-size: 16px;
             border: 1px solid rgba(255,255,255,0.2);
-            pointer-events: none;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            z-index: 20;
+            font-weight: 500;
+            letter-spacing: 0.5px;
         }
-        #permission-btn {
+        
+        /* Planet info card – glassmorphism like Windows 11 search */
+        #info-card {
             position: absolute;
             top: 20px;
             right: 20px;
-            z-index: 3;
-            background: #1e2a3a;
+            width: 300px;
+            max-width: calc(100vw - 40px);
+            background: rgba(30, 30, 40, 0.4);
+            backdrop-filter: blur(25px) saturate(180%);
+            -webkit-backdrop-filter: blur(25px) saturate(180%);
+            border-radius: 32px;
+            padding: 0;
             color: white;
-            border: 2px solid #4aa3ff;
-            border-radius: 40px;
-            padding: 12px 24px;
-            font-size: 16px;
-            font-weight: bold;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-            display: none;
-            cursor: pointer;
+            border: 1px solid rgba(255,255,255,0.15);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05) inset;
+            z-index: 30;
+            transition: opacity 0.3s ease, transform 0.4s cubic-bezier(0.2, 0.9, 0.3, 1.1);
+            opacity: 0;
+            transform: translateX(30px);
+            pointer-events: none;
+            font-weight: 400;
+            max-height: 70vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        #info-card.visible {
+            opacity: 1;
+            transform: translateX(0);
             pointer-events: auto;
         }
-        #hint {
+        .card-header {
+            padding: 22px 24px 12px 24px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .card-header h2 {
+            margin: 0;
+            font-size: 2rem;
+            font-weight: 400;
+            letter-spacing: -0.5px;
+            text-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+        .card-header button {
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: white;
+            font-size: 1.8rem;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            cursor: pointer;
+            backdrop-filter: blur(5px);
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(255,255,255,0.2);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        .card-header button:hover {
+            background: rgba(255,255,255,0.25);
+            transform: scale(1.05);
+        }
+        .card-content {
+            padding: 16px 24px 24px 24px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255,255,255,0.3) transparent;
+            line-height: 1.6;
+            font-size: 1.1rem;
+        }
+        .card-content p {
+            margin: 8px 0;
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px dashed rgba(255,255,255,0.2);
+            padding-bottom: 8px;
+        }
+        .card-content strong {
+            font-weight: 500;
+            color: #b0d0ff;
+        }
+        /* back button inside card (bottom) alternative, but we already have header back */
+        
+        /* small instruction for tap */
+        .tap-hint {
             position: absolute;
             top: 20px;
             left: 20px;
-            z-index: 2;
-            background: rgba(0,0,0,0.5);
-            backdrop-filter: blur(5px);
-            color: #ffd966;
-            padding: 8px 18px;
+            background: rgba(0,0,0,0.3);
+            backdrop-filter: blur(8px);
+            padding: 8px 16px;
             border-radius: 40px;
-            font-size: 14px;
-            border: 1px solid #ffd96655;
-            pointer-events: none;
+            color: #fff;
+            font-size: 0.9rem;
+            border: 1px solid rgba(255,255,255,0.2);
+            z-index: 15;
         }
     </style>
 </head>
 <body>
-    <video id="video-bg" autoplay playsinline></video>
-    <div id="canvas-container"></div>
-    <div id="hint">🌌 AR Solar System • Pinch to zoom • Drag to move</div>
-    <button id="permission-btn">🔘 Enable Motion Sensors</button>
-    <div id="status">🌀 Initializing camera & sensors...</div>
+    <!-- UI overlays -->
+    <div class="ar-tip">🌌 Point at <strong>HIRO marker</strong> — Solar System appears</div>
+    <div class="tap-hint">👆 Tap any planet for details</div>
 
-    <!-- Import Three.js -->
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://unpkg.com/three@0.128.0/build/three.module.js"
-            }
-        }
-    </script>
+    <!-- Glass info card (hidden by default) -->
+    <div id="info-card">
+        <div class="card-header">
+            <h2 id="planet-name">Earth</h2>
+            <button id="close-card">✕</button>
+        </div>
+        <div class="card-content" id="planet-details">
+            <!-- filled dynamically -->
+            <p><span>Type</span> <strong>Terrestrial</strong></p>
+            <p><span>Radius</span> <strong>6,371 km</strong></p>
+            <p><span>Temperature</span> <strong>15°C</strong></p>
+            <p><span>Moons</span> <strong>1</strong></p>
+            <p><span>Orbit period</span> <strong>365 days</strong></p>
+            <p><span>Rotation</span> <strong>24h</strong></p>
+        </div>
+    </div>
 
-    <script type="module">
-        import * as THREE from 'three';
+    <!-- AR Scene -->
+    <a-scene id="scene" embedded 
+             arjs="sourceType: webcam; detectionMode: mono; debugUIEnabled: false; trackingMethod: best;"
+             vr-mode-ui="enabled: false"
+             renderer="colorManagement: true; physicallyCorrectLights: true"
+             cursor="rayOrigin: mouse; fuse: false">
 
-        // --- 1. Camera feed (rear camera) ---
-        const video = document.getElementById('video-bg');
-        async function startCamera() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
-                    audio: false 
+        <!-- Camera with raycaster for click/tap detection -->
+        <a-entity id="camera" camera look-controls raycaster="objects: .clickable; far: 20; interval: 100"></a-entity>
+
+        <!-- Light from Sun (will be positioned at center) -->
+        <a-light type="point" intensity="2" distance="30" decay="2" color="#fff7d9" position="0 0 0"></a-light>
+        <a-light type="ambient" intensity="0.2" color="#ffffff"></a-light>
+
+        <!-- HIRO marker – holds the solar system -->
+        <a-marker preset="hiro" id="main-marker">
+
+            <!-- Main solar system group (visible by default) -->
+            <a-entity id="solar-system-group" scale="1 1 1" position="0 0 0" rotation="0 0 0">
+                <!-- Sun (glowing) -->
+                <a-sphere radius="0.28" color="#ffaa33" position="0 0 0" 
+                          material="emissive: #ff6600; emissiveIntensity: 1.5; src: url(https://raw.githubusercontent.com/aframevr/sample-assets/master/assets/images/planets/sun.png); repeat: 1 1"
+                          class="clickable" id="sun" data-name="Sun"></a-sphere>
+
+                <!-- Orbit rings (visual guides) and planets with textures -->
+                <!-- Mercury -->
+                <a-entity id="mercury-orbit" class="orbit-group" rotation="0 0 0">
+                    <a-ring radius="0.5" radius-tubular="0.002" color="#aaa" material="transparent: true; opacity: 0.15" rotation="90 0 0"></a-ring>
+                    <a-sphere radius="0.045" color="#a5a5a5" position="0.5 0 0" 
+                              material="src: url(https://raw.githubusercontent.com/aframevr/sample-assets/master/assets/images/planets/mercury.png); repeat: 1 1"
+                              class="clickable" id="mercury" data-name="Mercury"></a-sphere>
+                    <a-animation attribute="rotation" to="0 360 0" dur="6000" easing="linear" repeat="indefinite"></a-animation>
+                </a-entity>
+
+                <!-- Venus -->
+                <a-entity id="venus-orbit" class="orbit-group" rotation="0 0 0">
+                    <a-ring radius="0.7" radius-tubular="0.002" color="#e0b060" material="transparent: true; opacity: 0.15" rotation="90 0 0"></a-ring>
+                    <a-sphere radius="0.055" color="#e6b856" position="0.7 0 0" 
+                              material="src: url(https://raw.githubusercontent.com/aframevr/sample-assets/master/assets/images/planets/venus.png); repeat: 1 1"
+                              class="clickable" id="venus" data-name="Venus"></a-sphere>
+                    <a-animation attribute="rotation" to="0 360 0" dur="7500" easing="linear" repeat="indefinite"></a-animation>
+                </a-entity>
+
+                <!-- Earth + Moon system -->
+                <a-entity id="earth-orbit" class="orbit-group" rotation="0 0 0">
+                    <a-ring radius="0.9" radius-tubular="0.002" color="#3a7fff" material="transparent: true; opacity: 0.2" rotation="90 0 0"></a-ring>
+                    <!-- Earth sphere (with spin) -->
+                    <a-sphere radius="0.06" color="#2a7fff" position="0.9 0 0" 
+                              material="src: url(https://raw.githubusercontent.com/aframevr/sample-assets/master/assets/images/planets/earth.png); repeat: 1 1"
+                              class="clickable" id="earth" data-name="Earth">
+                        <!-- Earth's rotation (spin) -->
+                        <a-animation attribute="rotation" to="360 0 0" dur="20" easing="linear" repeat="indefinite"></a-animation>
+                    </a-sphere>
+                    <!-- Moon orbiting Earth -->
+                    <a-entity id="moon-orbit" position="0.9 0 0">
+                        <a-ring radius="0.12" radius-tubular="0.001" color="#ccc" material="transparent: true; opacity: 0.1" rotation="90 0 0"></a-ring>
+                        <a-sphere radius="0.02" color="#ddd" position="0.12 0 0" material="src: url(https://raw.githubusercontent.com/aframevr/sample-assets/master/assets/images/planets/moon.png); repeat: 1 1"></a-sphere>
+                        <a-animation attribute="rotation" to="0 360 0" dur="2000" easing="linear" repeat="indefinite"></a-animation>
+                    </a-entity>
+                    <!-- Revolution animation for Earth group (whole system around sun) -->
+                    <a-animation attribute="rotation" to="0 360 0" dur="10000" easing="linear" repeat="indefinite"></a-animation>
+                </a-entity>
+
+                <!-- Mars -->
+                <a-entity id="mars-orbit" class="orbit-group" rotation="0 0 0">
+                    <a-ring radius="1.1" radius-tubular="0.002" color="#c2714c" material="transparent: true; opacity: 0.15" rotation="90 0 0"></a-ring>
+                    <a-sphere radius="0.05" color="#c1440e" position="1.1 0 0" 
+                              material="src: url(https://raw.githubusercontent.com/aframevr/sample-assets/master/assets/images/planets/mars.png); repeat: 1 1"
+                              class="clickable" id="mars" data-name="Mars"></a-sphere>
+                    <a-animation attribute="rotation" to="0 360 0" dur="13000" easing="linear" repeat="indefinite"></a-animation>
+                </a-entity>
+
+                <!-- Jupiter (big) -->
+                <a-entity id="jupiter-orbit" class="orbit-group" rotation="0 0 0">
+                    <a-ring radius="1.5" radius-tubular="0.004" color="#c0a070" material="transparent: true; opacity: 0.2" rotation="90 0 0"></a-ring>
+                    <a-sphere radius="0.12" color="#d8a27a" position="1.5 0 0" 
+                              material="src: url(https://raw.githubusercontent.com/aframevr/sample-assets/master/assets/images/planets/jupiter.png); repeat: 1 1"
+                              class="clickable" id="jupiter" data-name="Jupiter"></a-sphere>
+                    <a-animation attribute="rotation" to="0 360 0" dur="18000" easing="linear" repeat="indefinite"></a-animation>
+                </a-entity>
+
+                <!-- Saturn + rings -->
+                <a-entity id="saturn-orbit" class="orbit-group" rotation="0 0 0">
+                    <a-ring radius="1.9" radius-tubular="0.004" color="#c0a070" material="transparent: true; opacity: 0.2" rotation="90 0 0"></a-ring>
+                    <a-sphere radius="0.1" color="#e0bb87" position="1.9 0 0" 
+                              material="src: url(https://raw.githubusercontent.com/aframevr/sample-assets/master/assets/images/planets/saturn.png); repeat: 1 1"
+                              class="clickable" id="saturn" data-name="Saturn"></a-sphere>
+                    <!-- Ring using torus with texture (simple color) -->
+                    <a-torus radius="0.17" radius-tubular="0.02" color="#c0a070" rotation="90 0 0" position="1.9 0 0"
+                             material="transparent: true; opacity: 0.4; src: url(https://raw.githubusercontent.com/aframevr/sample-assets/master/assets/images/planets/saturn_ring.png); repeat: 1 1"></a-torus>
+                    <a-animation attribute="rotation" to="0 360 0" dur="22000" easing="linear" repeat="indefinite"></a-animation>
+                </a-entity>
+
+                <!-- Uranus -->
+                <a-entity id="uranus-orbit" class="orbit-group" rotation="0 0 0">
+                    <a-ring radius="2.2" radius-tubular="0.004" color="#7ec8e0" material="transparent: true; opacity: 0.15" rotation="90 0 0"></a-ring>
+                    <a-sphere radius="0.08" color="#7ec8e0" position="2.2 0 0" 
+                              material="src: url(https://raw.githubusercontent.com/aframevr/sample-assets/master/assets/images/planets/uranus.png); repeat: 1 1"
+                              class="clickable" id="uranus" data-name="Uranus"></a-sphere>
+                    <a-animation attribute="rotation" to="0 360 0" dur="26000" easing="linear" repeat="indefinite"></a-animation>
+                </a-entity>
+
+                <!-- Neptune -->
+                <a-entity id="neptune-orbit" class="orbit-group" rotation="0 0 0">
+                    <a-ring radius="2.5" radius-tubular="0.004" color="#4b70dd" material="transparent: true; opacity: 0.15" rotation="90 0 0"></a-ring>
+                    <a-sphere radius="0.08" color="#4b70dd" position="2.5 0 0" 
+                              material="src: url(https://raw.githubusercontent.com/aframevr/sample-assets/master/assets/images/planets/neptune.png); repeat: 1 1"
+                              class="clickable" id="neptune" data-name="Neptune"></a-sphere>
+                    <a-animation attribute="rotation" to="0 360 0" dur="30000" easing="linear" repeat="indefinite"></a-animation>
+                </a-entity>
+
+                <!-- Asteroid belt placeholder (optional) - just a ring with particles -->
+                <a-ring radius="1.3" radius-tubular="0.002" color="#888" material="transparent: true; opacity: 0.1" rotation="90 0 0"></a-ring>
+                <!-- small random dots for asteroids (simplified) -->
+                <a-entity position="0 0 0">
+                    <a-sphere radius="0.01" color="#aaa" position="1.25 0.05 0.3"></a-sphere>
+                    <a-sphere radius="0.01" color="#aaa" position="-1.18 -0.03 0.4"></a-sphere>
+                    <a-sphere radius="0.01" color="#aaa" position="1.3 -0.06 -0.2"></a-sphere>
+                </a-entity>
+            </a-entity> <!-- /solar-system-group -->
+
+            <!-- Detail view group (hidden initially) – shows only selected planet large -->
+            <a-entity id="detail-group" visible="false" scale="1 1 1" position="0 0 0">
+                <!-- This will hold the selected planet sphere enlarged, with spin -->
+                <a-sphere id="detail-planet" radius="0.5" color="#ffffff" position="0 0 0"
+                          material="src: ''" class="clickable-detail"></a-sphere>
+                <!-- Add a subtle ring for Saturn if needed but handled by JS -->
+                <a-torus id="detail-ring" radius="0.8" radius-tubular="0.03" color="#c0a070" rotation="90 0 0" position="0 0 0"
+                         material="transparent: true; opacity: 0.4" visible="false"></a-torus>
+            </a-entity>
+        </a-marker>
+    </a-scene>
+
+    <script>
+        (function() {
+            // Planet database
+            const planetData = {
+                sun: { name: 'Sun', type: 'Star', radius: '696,340 km', temp: '5,500°C', moons: '0', orbit: '—', rotation: '27 days' },
+                mercury: { name: 'Mercury', type: 'Terrestrial', radius: '2,440 km', temp: '167°C', moons: '0', orbit: '88 days', rotation: '59 days' },
+                venus: { name: 'Venus', type: 'Terrestrial', radius: '6,052 km', temp: '462°C', moons: '0', orbit: '225 days', rotation: '243 days' },
+                earth: { name: 'Earth', type: 'Terrestrial', radius: '6,371 km', temp: '15°C', moons: '1', orbit: '365 days', rotation: '24h' },
+                mars: { name: 'Mars', type: 'Terrestrial', radius: '3,390 km', temp: '-65°C', moons: '2', orbit: '687 days', rotation: '24.6h' },
+                jupiter: { name: 'Jupiter', type: 'Gas Giant', radius: '69,911 km', temp: '-110°C', moons: '79', orbit: '12 years', rotation: '9.9h' },
+                saturn: { name: 'Saturn', type: 'Gas Giant', radius: '58,232 km', temp: '-140°C', moons: '83', orbit: '29 years', rotation: '10.7h' },
+                uranus: { name: 'Uranus', type: 'Ice Giant', radius: '25,362 km', temp: '-195°C', moons: '27', orbit: '84 years', rotation: '17h' },
+                neptune: { name: 'Neptune', type: 'Ice Giant', radius: '24,622 km', temp: '-200°C', moons: '14', orbit: '165 years', rotation: '16h' }
+            };
+
+            // UI elements
+            const infoCard = document.getElementById('info-card');
+            const planetNameEl = document.getElementById('planet-name');
+            const planetDetailsEl = document.getElementById('planet-details');
+            const closeBtn = document.getElementById('close-card');
+
+            // A-Frame scene and groups
+            const scene = document.querySelector('a-scene');
+            const solarGroup = document.getElementById('solar-system-group');
+            const detailGroup = document.getElementById('detail-group');
+            const detailSphere = document.getElementById('detail-planet');
+            const detailRing = document.getElementById('detail-ring');
+
+            let currentPlanetId = null;
+
+            // Hide card initially
+            infoCard.classList.remove('visible');
+
+            // Close card / back button
+            closeBtn.addEventListener('click', () => {
+                infoCard.classList.remove('visible');
+                // Show full solar system, hide detail group
+                if (solarGroup) solarGroup.setAttribute('visible', 'true');
+                if (detailGroup) detailGroup.setAttribute('visible', 'false');
+                currentPlanetId = null;
+            });
+
+            // Function to show planet detail
+            function showPlanetDetail(planetId) {
+                const data = planetData[planetId];
+                if (!data) return;
+
+                // Update card content
+                planetNameEl.textContent = data.name;
+                planetDetailsEl.innerHTML = `
+                    <p><span>Type</span> <strong>${data.type}</strong></p>
+                    <p><span>Radius</span> <strong>${data.radius}</strong></p>
+                    <p><span>Temperature</span> <strong>${data.temp}</strong></p>
+                    <p><span>Moons</span> <strong>${data.moons}</strong></p>
+                    <p><span>Orbit period</span> <strong>${data.orbit}</strong></p>
+                    <p><span>Rotation</span> <strong>${data.rotation}</strong></p>
+                `;
+
+                // Prepare detail view: set sphere texture and size
+                let textureUrl = '';
+                let isSaturn = (planetId === 'saturn');
+                // Map planetId to image file (same naming convention)
+                const imageMap = {
+                    sun: 'sun.png',
+                    mercury: 'mercury.png',
+                    venus: 'venus.png',
+                    earth: 'earth.png',
+                    mars: 'mars.png',
+                    jupiter: 'jupiter.png',
+                    saturn: 'saturn.png',
+                    uranus: 'uranus.png',
+                    neptune: 'neptune.png'
+                };
+                if (imageMap[planetId]) {
+                    textureUrl = `https://raw.githubusercontent.com/aframevr/sample-assets/master/assets/images/planets/${imageMap[planetId]}`;
+                }
+
+                detailSphere.setAttribute('material', 'src', textureUrl);
+                detailSphere.setAttribute('radius', isSaturn ? '0.4' : '0.5'); // Saturn a bit smaller to show ring
+                detailSphere.setAttribute('color', ''); // remove fallback color
+
+                // Handle Saturn's ring
+                if (isSaturn) {
+                    detailRing.setAttribute('visible', 'true');
+                    detailRing.setAttribute('radius', '0.7');
+                    detailRing.setAttribute('radius-tubular', '0.03');
+                    detailRing.setAttribute('material', 'src', 'https://raw.githubusercontent.com/aframevr/sample-assets/master/assets/images/planets/saturn_ring.png');
+                } else {
+                    detailRing.setAttribute('visible', 'false');
+                }
+
+                // Add spin animation to detail sphere (continuous rotation)
+                detailSphere.setAttribute('animation', {
+                    property: 'rotation',
+                    to: '360 0 0',
+                    dur: planetId === 'jupiter' ? '15000' : '30000', // different speeds
+                    easing: 'linear',
+                    loop: true
                 });
-                video.srcObject = stream;
-                await video.play();
-                document.getElementById('status').innerHTML = '📷 Camera active • waiting for sensors...';
-            } catch (err) {
-                document.getElementById('status').innerHTML = '❌ Camera access denied';
+
+                // Hide solar system, show detail group
+                solarGroup.setAttribute('visible', 'false');
+                detailGroup.setAttribute('visible', 'true');
+                infoCard.classList.add('visible');
+                currentPlanetId = planetId;
             }
-        }
-        startCamera();
 
-        // --- 2. Three.js setup (transparent) ---
-        const container = document.getElementById('canvas-container');
-        const scene = new THREE.Scene();
-        scene.background = null; // transparent
-
-        const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(0, 0, 0); // camera at origin, we'll move the world
-
-        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        renderer.setClearColor(0x000000, 0); // fully transparent
-        container.appendChild(renderer.domElement);
-
-        // --- 3. Lighting ---
-        const ambientLight = new THREE.AmbientLight(0x404060); // soft light
-        scene.add(ambientLight);
-
-        // Sun light (point light at sun position)
-        const sunLight = new THREE.PointLight(0xffeedd, 2, 0, 0);
-        sunLight.position.set(0, 0, 0);
-        scene.add(sunLight);
-
-        // Additional directional light to highlight planets
-        const dirLight = new THREE.DirectionalLight(0xffffff, 1);
-        dirLight.position.set(1, 2, 3);
-        scene.add(dirLight);
-
-        // --- 4. AR Group: everything will be inside this group ---
-        const arGroup = new THREE.Group();
-        scene.add(arGroup);
-
-        // Place the solar system 7 meters in front of the camera
-        arGroup.position.set(0, 0, -7);
-
-        // --- 5. Create the Solar System (planets as colored spheres with orbits) ---
-        // Planet data: name, color, size, orbit radius, speed (revolution factor)
-        const planetsData = [
-            { name: 'mercury', color: 0xaaaaaa, size: 0.4, radius: 5, speed: 2.0 },
-            { name: 'venus',   color: 0xffcc88, size: 0.6, radius: 6, speed: 1.5 },
-            { name: 'earth',   color: 0x2288ff, size: 0.7, radius: 7, speed: 1.2 },
-            { name: 'mars',    color: 0xff6633, size: 0.6, radius: 8, speed: 1.0 },
-            { name: 'jupiter', color: 0xddbb99, size: 1.4, radius: 10, speed: 0.7 },
-            { name: 'saturn',  color: 0xeeddbb, size: 1.2, radius: 12, speed: 0.6 },
-            { name: 'uranus',  color: 0x88ccff, size: 1.0, radius: 14, speed: 0.5 },
-            { name: 'neptune', color: 0x3366ff, size: 0.9, radius: 16, speed: 0.4 }
-        ];
-
-        // Store planet meshes for animation
-        const planetMeshes = [];
-
-        // Create the Sun (emissive)
-        const sunGeo = new THREE.SphereGeometry(2.5, 64, 64);
-        const sunMat = new THREE.MeshStandardMaterial({ 
-            color: 0xffaa33, 
-            emissive: 0xff5500, 
-            emissiveIntensity: 1.2,
-            roughness: 0.2
-        });
-        const sun = new THREE.Mesh(sunGeo, sunMat);
-        sun.position.set(0, 0, 0);
-        arGroup.add(sun);
-
-        // Create orbits (transparent rings) and planets
-        planetsData.forEach(p => {
-            // Orbit ring (visual guide)
-            const ringGeo = new THREE.RingGeometry(p.radius - 0.1, p.radius + 0.1, 128);
-            const ringMat = new THREE.MeshStandardMaterial({ color: 0x88aaff, side: THREE.DoubleSide, transparent: true, opacity: 0.2 });
-            const ring = new THREE.Mesh(ringGeo, ringMat);
-            ring.rotation.x = Math.PI / 2;
-            arGroup.add(ring);
-
-            // Planet
-            const geo = new THREE.SphereGeometry(p.size, 48, 48);
-            const mat = new THREE.MeshStandardMaterial({ color: p.color, roughness: 0.3, metalness: 0.1 });
-            const planet = new THREE.Mesh(geo, mat);
-            planet.userData = { radius: p.radius, speed: p.speed, angle: Math.random() * Math.PI * 2 };
-            arGroup.add(planet);
-            planetMeshes.push(planet);
-
-            // Add a ring for Saturn (special)
-            if (p.name === 'saturn') {
-                const ringSatGeo = new THREE.TorusGeometry(p.size * 1.6, 0.15, 16, 64);
-                const ringSatMat = new THREE.MeshStandardMaterial({ color: 0xc2b280, side: THREE.DoubleSide });
-                const ringSat = new THREE.Mesh(ringSatGeo, ringSatMat);
-                ringSat.rotation.x = Math.PI / 2;
-                ringSat.rotation.z = 0.3;
-                planet.add(ringSat); // attach to saturn so it moves with it
-            }
-        });
-
-        // --- 6. Device Orientation handling (gyroscope + accelerometer) ---
-        let orientationAvailable = false;
-        const statusEl = document.getElementById('status');
-        const orientBtn = document.getElementById('permission-btn');
-
-        // Target quaternion for the group (inverse of device orientation)
-        const targetQuat = new THREE.Quaternion();
-
-        function handleOrientation(event) {
-            if (event.alpha === null || event.beta === null || event.gamma === null) return;
-            
-            const degToRad = Math.PI / 180;
-            const alpha = event.alpha * degToRad; // z-axis rotation (0-360)
-            const beta = event.beta * degToRad;   // x-axis tilt (-180 to 180)
-            const gamma = event.gamma * degToRad;  // y-axis tilt (-90 to 90)
-
-            // Build quaternion from device orientation (standard: yaw around Y, pitch around X, roll around Z)
-            const qYaw = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -alpha);
-            const qPitch = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -beta);
-            const qRoll = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), gamma);
-            
-            // Compose: yaw * pitch * roll (order matters)
-            const rawQuat = qYaw.clone().multiply(qPitch).multiply(qRoll);
-            
-            // Smooth with slerp
-            if (!orientationAvailable) {
-                targetQuat.copy(rawQuat);
-                orientationAvailable = true;
-                statusEl.innerHTML = '🟢 Sensors active • move phone to explore';
-                orientBtn.style.display = 'none';
-            } else {
-                targetQuat.slerp(rawQuat, 0.15);
-            }
-            
-            // Apply inverse to the group so that the system appears fixed in world
-            arGroup.quaternion.copy(targetQuat).invert();
-        }
-
-        // iOS 13+ permission
-        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-            orientBtn.style.display = 'block';
-            orientBtn.addEventListener('click', () => {
-                DeviceOrientationEvent.requestPermission()
-                    .then(response => {
-                        if (response === 'granted') {
-                            window.addEventListener('deviceorientation', handleOrientation);
-                            statusEl.innerHTML = '🟢 Sensors enabled';
+            // Wait for scene to load, then attach click listeners to planets
+            scene.addEventListener('loaded', () => {
+                // Get all clickable entities
+                const clickables = document.querySelectorAll('.clickable');
+                clickables.forEach(el => {
+                    el.addEventListener('click', (evt) => {
+                        evt.stopPropagation();
+                        const planetId = el.getAttribute('id');
+                        if (planetId && planetData[planetId]) {
+                            showPlanetDetail(planetId);
                         } else {
-                            statusEl.innerHTML = '❌ Sensor permission denied';
+                            // fallback if id not recognized
+                            const name = el.getAttribute('data-name') || 'Planet';
+                            // create generic data
+                            planetNameEl.textContent = name;
+                            planetDetailsEl.innerHTML = `<p><span>Info</span> <strong>Selected ${name}</strong></p>`;
+                            solarGroup.setAttribute('visible', 'false');
+                            detailGroup.setAttribute('visible', 'true');
+                            infoCard.classList.add('visible');
                         }
-                    })
-                    .catch(console.error);
-            });
-        } else {
-            window.addEventListener('deviceorientation', handleOrientation);
-            orientBtn.style.display = 'none';
-        }
+                    });
+                });
 
-        // Fallback if no orientation after 4s
-        setTimeout(() => {
-            if (!orientationAvailable) {
-                statusEl.innerHTML = '⚠️ No orientation data (sensors missing?)';
-            }
-        }, 4000);
-
-        // --- 7. Touch interactions: pinch to scale, one-finger drag to move ---
-        let initialDistance = null;
-        let initialScale = 1;
-        let touchStartPos = null;
-        let initialObjPos = null;
-        const moveSpeed = 0.012;
-
-        container.addEventListener('touchstart', (e) => {
-            if (e.touches.length === 2) {
-                const dx = e.touches[0].pageX - e.touches[1].pageX;
-                const dy = e.touches[0].pageY - e.touches[1].pageY;
-                initialDistance = Math.sqrt(dx*dx + dy*dy);
-                initialScale = arGroup.scale.x;
-                e.preventDefault();
-            } else if (e.touches.length === 1) {
-                touchStartPos = new THREE.Vector2(e.touches[0].pageX, e.touches[0].pageY);
-                initialObjPos = arGroup.position.clone();
-                e.preventDefault();
-            }
-        }, { passive: false });
-
-        container.addEventListener('touchmove', (e) => {
-            if (e.touches.length === 2 && initialDistance) {
-                const dx = e.touches[0].pageX - e.touches[1].pageX;
-                const dy = e.touches[0].pageY - e.touches[1].pageY;
-                const distance = Math.sqrt(dx*dx + dy*dy);
-                const scale = initialScale * (distance / initialDistance);
-                arGroup.scale.set(scale, scale, scale);
-                e.preventDefault();
-            } else if (e.touches.length === 1 && touchStartPos && initialObjPos) {
-                const currentPos = new THREE.Vector2(e.touches[0].pageX, e.touches[0].pageY);
-                const deltaX = (currentPos.x - touchStartPos.x) * moveSpeed;
-                const deltaY = (currentPos.y - touchStartPos.y) * moveSpeed;
-                
-                // Move in world coordinates (camera at origin)
-                arGroup.position.x = initialObjPos.x + deltaX;
-                arGroup.position.y = initialObjPos.y - deltaY; // Y inverted because screen Y increases downward
-                e.preventDefault();
-            }
-        }, { passive: false });
-
-        container.addEventListener('touchend', () => {
-            initialDistance = null;
-            touchStartPos = null;
-        });
-
-        // --- 8. Animation: revolution and rotation of planets ---
-        function animate() {
-            requestAnimationFrame(animate);
-
-            // Rotate planets around their own axis
-            planetMeshes.forEach(planet => {
-                planet.rotation.y += 0.005;
-            });
-            sun.rotation.y += 0.001;
-
-            // Revolution around the sun (update positions relative to group)
-            planetMeshes.forEach(planet => {
-                const data = planet.userData;
-                data.angle += data.speed * 0.008; // speed factor
-                const r = data.radius;
-                planet.position.x = Math.cos(data.angle) * r;
-                planet.position.z = Math.sin(data.angle) * r;
+                // Also ensure clicking on sun works (already has class)
             });
 
-            // Update sun light position to follow group (sun is at group origin)
-            sunLight.position.copy(arGroup.position);
+            // Optional: Handle marker detection (if marker lost, hide card maybe)
+            // Not necessary.
 
-            renderer.render(scene, camera);
-        }
-        animate();
+            // Ensure that if user taps outside (on background) we don't close card accidentally.
+            // The close button handles it.
 
-        // --- 9. Window resize ---
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
+            // Expose function for debugging
+            window.showPlanet = showPlanetDetail;
+        })();
     </script>
+
+    <!-- Additional notes: 
+        - For better pinch-zoom & pan, we rely on AR.js marker tracking and phone movement.
+        - The model scales naturally as you move toward/away from marker.
+        - To provide extra scale control, you could add a gesture handler, but we kept it simple.
+        - Textures are loaded from aframevr sample assets (public domain-ish). They might not be perfect but illustrate the idea.
+        - All planets have .clickable class; tapping shows glass card and switches to detail view.
+        - Saturn's ring appears in detail view.
+        - The solar system lies flat on the marker (parallel to ground) as requested.
+    -->
 </body>
 </html>
