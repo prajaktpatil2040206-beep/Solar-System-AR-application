@@ -1,224 +1,452 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <meta charset="utf-8">
-    <title>🌍 AR Solar System – Hiro Marker</title>
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <!-- A-Frame and AR.js -->
+    <title>AR Solar System — Professional 3D</title>
+    
+    <!-- A-Frame & AR.js -->
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
-
+    
+    <!-- Optional: for better touch gestures (pinch zoom & pan) we extend A-Frame with extra components -->
+    <script src="https://unpkg.com/aframe-extras@6.1.1/dist/aframe-extras.min.js"></script>
+    
     <style>
-        body { margin: 0; overflow: hidden; }
-        .info {
+        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+        
+        /* AR info tip */
+        .ar-tip {
             position: absolute;
-            bottom: 20px;
+            bottom: 30px;
             left: 0;
             right: 0;
             text-align: center;
             color: white;
-            background: rgba(0,0,0,0.7);
-            padding: 10px;
-            font-family: Arial, sans-serif;
-            pointer-events: none;
-            z-index: 999;
-            border-radius: 40px;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            padding: 12px 24px;
+            border-radius: 60px;
             width: fit-content;
             margin: 0 auto;
+            border: 1px solid rgba(255,255,255,0.2);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            z-index: 20;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+        
+        /* Planet info card – glassmorphism like Windows 11 search */
+        #info-card {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 300px;
+            max-width: calc(100vw - 40px);
+            background: rgba(30, 30, 40, 0.4);
+            backdrop-filter: blur(25px) saturate(180%);
+            -webkit-backdrop-filter: blur(25px) saturate(180%);
+            border-radius: 32px;
+            padding: 0;
+            color: white;
+            border: 1px solid rgba(255,255,255,0.15);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05) inset;
+            z-index: 30;
+            transition: opacity 0.3s ease, transform 0.4s cubic-bezier(0.2, 0.9, 0.3, 1.1);
+            opacity: 0;
+            transform: translateX(30px);
+            pointer-events: none;
+            font-weight: 400;
+            max-height: 70vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        #info-card.visible {
+            opacity: 1;
+            transform: translateX(0);
+            pointer-events: auto;
+        }
+        .card-header {
+            padding: 22px 24px 12px 24px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .card-header h2 {
+            margin: 0;
+            font-size: 2rem;
+            font-weight: 400;
+            letter-spacing: -0.5px;
+            text-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+        .card-header button {
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: white;
+            font-size: 1.8rem;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            cursor: pointer;
             backdrop-filter: blur(5px);
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(255,255,255,0.2);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        .card-header button:hover {
+            background: rgba(255,255,255,0.25);
+            transform: scale(1.05);
+        }
+        .card-content {
+            padding: 16px 24px 24px 24px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255,255,255,0.3) transparent;
+            line-height: 1.6;
+            font-size: 1.1rem;
+        }
+        .card-content p {
+            margin: 8px 0;
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px dashed rgba(255,255,255,0.2);
+            padding-bottom: 8px;
+        }
+        .card-content strong {
+            font-weight: 500;
+            color: #b0d0ff;
+        }
+        /* back button inside card (bottom) alternative, but we already have header back */
+        
+        /* small instruction for tap */
+        .tap-hint {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.3);
+            backdrop-filter: blur(8px);
+            padding: 8px 16px;
+            border-radius: 40px;
+            color: #fff;
+            font-size: 0.9rem;
+            border: 1px solid rgba(255,255,255,0.2);
+            z-index: 15;
         }
     </style>
 </head>
 <body>
-    <div class="info">🔵 Point camera at <strong>HIRO marker</strong> to see the Solar System</div>
+    <!-- UI overlays -->
+    <div class="ar-tip">🌌 Point at <strong>HIRO marker</strong> — Solar System appears</div>
+    <div class="tap-hint">👆 Tap any planet for details</div>
 
-    <a-scene embedded arjs="sourceType: webcam; detectionMode: mono; debugUIEnabled: false;">
+    <!-- Glass info card (hidden by default) -->
+    <div id="info-card">
+        <div class="card-header">
+            <h2 id="planet-name">Earth</h2>
+            <button id="close-card">✕</button>
+        </div>
+        <div class="card-content" id="planet-details">
+            <!-- filled dynamically -->
+            <p><span>Type</span> <strong>Terrestrial</strong></p>
+            <p><span>Radius</span> <strong>6,371 km</strong></p>
+            <p><span>Temperature</span> <strong>15°C</strong></p>
+            <p><span>Moons</span> <strong>1</strong></p>
+            <p><span>Orbit period</span> <strong>365 days</strong></p>
+            <p><span>Rotation</span> <strong>24h</strong></p>
+        </div>
+    </div>
 
-        <!-- Camera (required) -->
-        <a-entity camera></a-entity>
+    <!-- AR Scene -->
+    <a-scene id="scene" embedded 
+             arjs="sourceType: webcam; detectionMode: mono; debugUIEnabled: false; trackingMethod: best;"
+             vr-mode-ui="enabled: false"
+             renderer="colorManagement: true; physicallyCorrectLights: true"
+             cursor="rayOrigin: mouse; fuse: false">
 
-        <!-- This marker will trigger the solar system -->
-        <a-marker preset="hiro" id="solar-marker">
+        <!-- Camera with raycaster for click/tap detection -->
+        <a-entity id="camera" camera look-controls raycaster="objects: .clickable; far: 20; interval: 100"></a-entity>
 
-            <!-- We'll group everything inside the marker -->
-            <a-entity id="solar-system">
+        <!-- Light from Sun (will be positioned at center) -->
+        <a-light type="point" intensity="2" distance="30" decay="2" color="#fff7d9" position="0 0 0"></a-light>
+        <a-light type="ambient" intensity="0.2" color="#ffffff"></a-light>
 
+        <!-- HIRO marker – holds the solar system -->
+        <a-marker preset="hiro" id="main-marker">
+
+            <!-- Main solar system group (visible by default) -->
+            <a-entity id="solar-system-group" scale="1 1 1" position="0 0 0" rotation="0 0 0">
                 <!-- Sun (glowing) -->
-                <a-sphere radius="0.25" color="#ffaa00" position="0 0 0" 
-                          material="emissive: #ff5500"></a-sphere>
+                <a-sphere radius="0.28" color="#ffaa33" position="0 0 0" 
+                          material="emissive: #ff6600; emissiveIntensity: 1.5; src: url(https://raw.githubusercontent.com/aframevr/sample-assets/master/assets/images/planets/sun.png); repeat: 1 1"
+                          class="clickable" id="sun" data-name="Sun"></a-sphere>
 
-                <!-- Orbit lines (invisible circles that hold the planets) -->
-                <!-- Mercury Orbit (and planet) -->
-                <a-entity rotation="0 0 0">
-                    <a-ring radius="0.5" radius-tubular="0.005" color="#888" 
-                            material="transparent: true; opacity: 0.3" 
-                            rotation="90 0 0"></a-ring>
-                    <a-sphere radius="0.06" color="#aaaaaa" 
-                              position="0.5 0 0" 
-                              animation="property: position; to: 0.5 0 0; dur: 3000; easing: linear; loop: true; 
-                                         dir: alternate; 
-                                         from: -0.5 0 0; 
-                                         startEvents: ; 
-                                         pauseEvents: ; 
-                                         elasticity: 1;
-                                         autoplay: true;
-                                         enabled: true;
-                                         
-                                         Actually we need revolution around sun. 
-                                         Better to use a rotation wrapper.">
-                    </a-sphere>
-                </a-entity>
-
-                <!-- Simpler: use a entity for each planet with rotation around sun -->
+                <!-- Orbit rings (visual guides) and planets with textures -->
                 <!-- Mercury -->
-                <a-entity rotation="0 0 0">
-                    <a-ring radius="0.5" radius-tubular="0.002" color="#888" 
-                            material="transparent: true; opacity: 0.2" 
-                            rotation="90 0 0"></a-ring>
-                    <a-sphere radius="0.05" color="#b0b0b0" 
-                              position="0.5 0 0">
-                        <a-animation attribute="position" 
-                                     from="0.5 0 0" 
-                                     to="-0.5 0 0" 
-                                     dur="4000" 
-                                     easing="linear" 
-                                     repeat="indefinite"
-                                     direction="alternate"></a-animation>
-                    </a-sphere>
-                </a-entity>
-
-                <!-- Wait, this method (alternate) goes back and forth, not circular. 
-                     Better to use a rotation around the sun by wrapping planet in a rotated group. -->
-
-                <!-- Let's redesign: Each planet will be inside a group that rotates around Y axis,
-                     and the planet itself is offset along X. That gives perfect circular orbit. -->
-
-                <!-- Mercury -->
-                <a-entity rotation="0 0 0" id="mercury-orbit">
-                    <a-ring radius="0.5" radius-tubular="0.002" color="#aaa" 
-                            material="transparent: true; opacity: 0.3" 
-                            rotation="90 0 0"></a-ring>
-                    <a-sphere radius="0.05" color="#b0b0b0" position="0.5 0 0"></a-sphere>
-                    <a-animation attribute="rotation" 
-                                 to="0 360 0" 
-                                 dur="5000" 
-                                 easing="linear" 
-                                 repeat="indefinite"></a-animation>
+                <a-entity id="mercury-orbit" class="orbit-group" rotation="0 0 0">
+                    <a-ring radius="0.5" radius-tubular="0.002" color="#aaa" material="transparent: true; opacity: 0.15" rotation="90 0 0"></a-ring>
+                    <a-sphere radius="0.045" color="#a5a5a5" position="0.5 0 0" 
+                              material="src: url(https://raw.githubusercontent.com/aframevr/sample-assets/master/assets/images/planets/mercury.png); repeat: 1 1"
+                              class="clickable" id="mercury" data-name="Mercury"></a-sphere>
+                    <a-animation attribute="rotation" to="0 360 0" dur="6000" easing="linear" repeat="indefinite"></a-animation>
                 </a-entity>
 
                 <!-- Venus -->
-                <a-entity rotation="0 60 0" id="venus-orbit">
-                    <a-ring radius="0.7" radius-tubular="0.002" color="#f90" 
-                            material="transparent: true; opacity: 0.3" 
-                            rotation="90 0 0"></a-ring>
-                    <a-sphere radius="0.06" color="#f9c28d" position="0.7 0 0"></a-sphere>
-                    <a-animation attribute="rotation" 
-                                 to="0 360 0" 
-                                 dur="7000" 
-                                 easing="linear" 
-                                 repeat="indefinite"></a-animation>
+                <a-entity id="venus-orbit" class="orbit-group" rotation="0 0 0">
+                    <a-ring radius="0.7" radius-tubular="0.002" color="#e0b060" material="transparent: true; opacity: 0.15" rotation="90 0 0"></a-ring>
+                    <a-sphere radius="0.055" color="#e6b856" position="0.7 0 0" 
+                              material="src: url(https://raw.githubusercontent.com/aframevr/sample-assets/master/assets/images/planets/venus.png); repeat: 1 1"
+                              class="clickable" id="venus" data-name="Venus"></a-sphere>
+                    <a-animation attribute="rotation" to="0 360 0" dur="7500" easing="linear" repeat="indefinite"></a-animation>
                 </a-entity>
 
-                <!-- Earth -->
-                <a-entity rotation="0 120 0" id="earth-orbit">
-                    <a-ring radius="0.9" radius-tubular="0.002" color="#2a7fff" 
-                            material="transparent: true; opacity: 0.3" 
-                            rotation="90 0 0"></a-ring>
-                    <a-sphere radius="0.065" color="#2a7fff" position="0.9 0 0"></a-sphere>
-                    <a-animation attribute="rotation" 
-                                 to="0 360 0" 
-                                 dur="9000" 
-                                 easing="linear" 
-                                 repeat="indefinite"></a-animation>
+                <!-- Earth + Moon system -->
+                <a-entity id="earth-orbit" class="orbit-group" rotation="0 0 0">
+                    <a-ring radius="0.9" radius-tubular="0.002" color="#3a7fff" material="transparent: true; opacity: 0.2" rotation="90 0 0"></a-ring>
+                    <!-- Earth sphere (with spin) -->
+                    <a-sphere radius="0.06" color="#2a7fff" position="0.9 0 0" 
+                              material="src: url(https://raw.githubusercontent.com/aframevr/sample-assets/master/assets/images/planets/earth.png); repeat: 1 1"
+                              class="clickable" id="earth" data-name="Earth">
+                        <!-- Earth's rotation (spin) -->
+                        <a-animation attribute="rotation" to="360 0 0" dur="20" easing="linear" repeat="indefinite"></a-animation>
+                    </a-sphere>
+                    <!-- Moon orbiting Earth -->
+                    <a-entity id="moon-orbit" position="0.9 0 0">
+                        <a-ring radius="0.12" radius-tubular="0.001" color="#ccc" material="transparent: true; opacity: 0.1" rotation="90 0 0"></a-ring>
+                        <a-sphere radius="0.02" color="#ddd" position="0.12 0 0" material="src: url(https://raw.githubusercontent.com/aframevr/sample-assets/master/assets/images/planets/moon.png); repeat: 1 1"></a-sphere>
+                        <a-animation attribute="rotation" to="0 360 0" dur="2000" easing="linear" repeat="indefinite"></a-animation>
+                    </a-entity>
+                    <!-- Revolution animation for Earth group (whole system around sun) -->
+                    <a-animation attribute="rotation" to="0 360 0" dur="10000" easing="linear" repeat="indefinite"></a-animation>
                 </a-entity>
 
                 <!-- Mars -->
-                <a-entity rotation="0 180 0" id="mars-orbit">
-                    <a-ring radius="1.1" radius-tubular="0.002" color="#c1440e" 
-                            material="transparent: true; opacity: 0.3" 
-                            rotation="90 0 0"></a-ring>
-                    <a-sphere radius="0.055" color="#c1440e" position="1.1 0 0"></a-sphere>
-                    <a-animation attribute="rotation" 
-                                 to="0 360 0" 
-                                 dur="11000" 
-                                 easing="linear" 
-                                 repeat="indefinite"></a-animation>
+                <a-entity id="mars-orbit" class="orbit-group" rotation="0 0 0">
+                    <a-ring radius="1.1" radius-tubular="0.002" color="#c2714c" material="transparent: true; opacity: 0.15" rotation="90 0 0"></a-ring>
+                    <a-sphere radius="0.05" color="#c1440e" position="1.1 0 0" 
+                              material="src: url(https://raw.githubusercontent.com/aframevr/sample-assets/master/assets/images/planets/mars.png); repeat: 1 1"
+                              class="clickable" id="mars" data-name="Mars"></a-sphere>
+                    <a-animation attribute="rotation" to="0 360 0" dur="13000" easing="linear" repeat="indefinite"></a-animation>
                 </a-entity>
 
                 <!-- Jupiter (big) -->
-                <a-entity rotation="0 240 0" id="jupiter-orbit">
-                    <a-ring radius="1.4" radius-tubular="0.005" color="#d8a27a" 
-                            material="transparent: true; opacity: 0.3" 
-                            rotation="90 0 0"></a-ring>
-                    <a-sphere radius="0.12" color="#d8a27a" position="1.4 0 0"></a-sphere>
-                    <a-animation attribute="rotation" 
-                                 to="0 360 0" 
-                                 dur="14000" 
-                                 easing="linear" 
-                                 repeat="indefinite"></a-animation>
+                <a-entity id="jupiter-orbit" class="orbit-group" rotation="0 0 0">
+                    <a-ring radius="1.5" radius-tubular="0.004" color="#c0a070" material="transparent: true; opacity: 0.2" rotation="90 0 0"></a-ring>
+                    <a-sphere radius="0.12" color="#d8a27a" position="1.5 0 0" 
+                              material="src: url(https://raw.githubusercontent.com/aframevr/sample-assets/master/assets/images/planets/jupiter.png); repeat: 1 1"
+                              class="clickable" id="jupiter" data-name="Jupiter"></a-sphere>
+                    <a-animation attribute="rotation" to="0 360 0" dur="18000" easing="linear" repeat="indefinite"></a-animation>
                 </a-entity>
 
-                <!-- Saturn (with ring) -->
-                <a-entity rotation="0 300 0" id="saturn-orbit">
-                    <a-ring radius="1.7" radius-tubular="0.005" color="#e0bb87" 
-                            material="transparent: true; opacity: 0.3" 
-                            rotation="90 0 0"></a-ring>
-                    <!-- Saturn sphere -->
-                    <a-sphere radius="0.1" color="#e0bb87" position="1.7 0 0"></a-sphere>
-                    <!-- Ring (torus) -->
-                    <a-torus radius="0.18" radius-tubular="0.01" color="#c0a070" 
-                             rotation="90 0 0" position="1.7 0 0"></a-torus>
-                    <a-animation attribute="rotation" 
-                                 to="0 360 0" 
-                                 dur="17000" 
-                                 easing="linear" 
-                                 repeat="indefinite"></a-animation>
+                <!-- Saturn + rings -->
+                <a-entity id="saturn-orbit" class="orbit-group" rotation="0 0 0">
+                    <a-ring radius="1.9" radius-tubular="0.004" color="#c0a070" material="transparent: true; opacity: 0.2" rotation="90 0 0"></a-ring>
+                    <a-sphere radius="0.1" color="#e0bb87" position="1.9 0 0" 
+                              material="src: url(https://raw.githubusercontent.com/aframevr/sample-assets/master/assets/images/planets/saturn.png); repeat: 1 1"
+                              class="clickable" id="saturn" data-name="Saturn"></a-sphere>
+                    <!-- Ring using torus with texture (simple color) -->
+                    <a-torus radius="0.17" radius-tubular="0.02" color="#c0a070" rotation="90 0 0" position="1.9 0 0"
+                             material="transparent: true; opacity: 0.4; src: url(https://raw.githubusercontent.com/aframevr/sample-assets/master/assets/images/planets/saturn_ring.png); repeat: 1 1"></a-torus>
+                    <a-animation attribute="rotation" to="0 360 0" dur="22000" easing="linear" repeat="indefinite"></a-animation>
                 </a-entity>
 
                 <!-- Uranus -->
-                <a-entity rotation="0 30 0" id="uranus-orbit">
-                    <a-ring radius="2.0" radius-tubular="0.005" color="#7ec8e0" 
-                            material="transparent: true; opacity: 0.3" 
-                            rotation="90 0 0"></a-ring>
-                    <a-sphere radius="0.08" color="#7ec8e0" position="2.0 0 0"></a-sphere>
-                    <a-animation attribute="rotation" 
-                                 to="0 360 0" 
-                                 dur="20000" 
-                                 easing="linear" 
-                                 repeat="indefinite"></a-animation>
+                <a-entity id="uranus-orbit" class="orbit-group" rotation="0 0 0">
+                    <a-ring radius="2.2" radius-tubular="0.004" color="#7ec8e0" material="transparent: true; opacity: 0.15" rotation="90 0 0"></a-ring>
+                    <a-sphere radius="0.08" color="#7ec8e0" position="2.2 0 0" 
+                              material="src: url(https://raw.githubusercontent.com/aframevr/sample-assets/master/assets/images/planets/uranus.png); repeat: 1 1"
+                              class="clickable" id="uranus" data-name="Uranus"></a-sphere>
+                    <a-animation attribute="rotation" to="0 360 0" dur="26000" easing="linear" repeat="indefinite"></a-animation>
                 </a-entity>
 
                 <!-- Neptune -->
-                <a-entity rotation="0 150 0" id="neptune-orbit">
-                    <a-ring radius="2.3" radius-tubular="0.005" color="#4b70dd" 
-                            material="transparent: true; opacity: 0.3" 
-                            rotation="90 0 0"></a-ring>
-                    <a-sphere radius="0.08" color="#4b70dd" position="2.3 0 0"></a-sphere>
-                    <a-animation attribute="rotation" 
-                                 to="0 360 0" 
-                                 dur="23000" 
-                                 easing="linear" 
-                                 repeat="indefinite"></a-animation>
+                <a-entity id="neptune-orbit" class="orbit-group" rotation="0 0 0">
+                    <a-ring radius="2.5" radius-tubular="0.004" color="#4b70dd" material="transparent: true; opacity: 0.15" rotation="90 0 0"></a-ring>
+                    <a-sphere radius="0.08" color="#4b70dd" position="2.5 0 0" 
+                              material="src: url(https://raw.githubusercontent.com/aframevr/sample-assets/master/assets/images/planets/neptune.png); repeat: 1 1"
+                              class="clickable" id="neptune" data-name="Neptune"></a-sphere>
+                    <a-animation attribute="rotation" to="0 360 0" dur="30000" easing="linear" repeat="indefinite"></a-animation>
                 </a-entity>
 
-                <!-- Some stars for effect (small particles) -->
+                <!-- Asteroid belt placeholder (optional) - just a ring with particles -->
+                <a-ring radius="1.3" radius-tubular="0.002" color="#888" material="transparent: true; opacity: 0.1" rotation="90 0 0"></a-ring>
+                <!-- small random dots for asteroids (simplified) -->
                 <a-entity position="0 0 0">
-                    <a-sphere radius="0.02" color="#fff" position="0.5 0.3 0.5"></a-sphere>
-                    <a-sphere radius="0.02" color="#fff" position="-0.4 0.5 0.6"></a-sphere>
-                    <a-sphere radius="0.02" color="#fff" position="0.3 -0.2 1.0"></a-sphere>
-                    <a-sphere radius="0.02" color="#fff" position="-0.6 0.1 0.8"></a-sphere>
-                    <a-sphere radius="0.02" color="#fff" position="0.8 0.4 -0.3"></a-sphere>
-                    <a-sphere radius="0.02" color="#fff" position="-0.3 -0.4 1.2"></a-sphere>
+                    <a-sphere radius="0.01" color="#aaa" position="1.25 0.05 0.3"></a-sphere>
+                    <a-sphere radius="0.01" color="#aaa" position="-1.18 -0.03 0.4"></a-sphere>
+                    <a-sphere radius="0.01" color="#aaa" position="1.3 -0.06 -0.2"></a-sphere>
                 </a-entity>
+            </a-entity> <!-- /solar-system-group -->
 
-            </a-entity> <!-- /solar-system -->
+            <!-- Detail view group (hidden initially) – shows only selected planet large -->
+            <a-entity id="detail-group" visible="false" scale="1 1 1" position="0 0 0">
+                <!-- This will hold the selected planet sphere enlarged, with spin -->
+                <a-sphere id="detail-planet" radius="0.5" color="#ffffff" position="0 0 0"
+                          material="src: ''" class="clickable-detail"></a-sphere>
+                <!-- Add a subtle ring for Saturn if needed but handled by JS -->
+                <a-torus id="detail-ring" radius="0.8" radius-tubular="0.03" color="#c0a070" rotation="90 0 0" position="0 0 0"
+                         material="transparent: true; opacity: 0.4" visible="false"></a-torus>
+            </a-entity>
         </a-marker>
-
     </a-scene>
 
-    <!-- Explanation of steps -->
-    <div style="position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.5); color: white; padding: 5px; border-radius: 5px; font-size: 12px; z-index: 1000;">
-        Steps: ① Print Hiro marker ② Open this page on phone ③ Point at marker
-    </div>
+    <script>
+        (function() {
+            // Planet database
+            const planetData = {
+                sun: { name: 'Sun', type: 'Star', radius: '696,340 km', temp: '5,500°C', moons: '0', orbit: '—', rotation: '27 days' },
+                mercury: { name: 'Mercury', type: 'Terrestrial', radius: '2,440 km', temp: '167°C', moons: '0', orbit: '88 days', rotation: '59 days' },
+                venus: { name: 'Venus', type: 'Terrestrial', radius: '6,052 km', temp: '462°C', moons: '0', orbit: '225 days', rotation: '243 days' },
+                earth: { name: 'Earth', type: 'Terrestrial', radius: '6,371 km', temp: '15°C', moons: '1', orbit: '365 days', rotation: '24h' },
+                mars: { name: 'Mars', type: 'Terrestrial', radius: '3,390 km', temp: '-65°C', moons: '2', orbit: '687 days', rotation: '24.6h' },
+                jupiter: { name: 'Jupiter', type: 'Gas Giant', radius: '69,911 km', temp: '-110°C', moons: '79', orbit: '12 years', rotation: '9.9h' },
+                saturn: { name: 'Saturn', type: 'Gas Giant', radius: '58,232 km', temp: '-140°C', moons: '83', orbit: '29 years', rotation: '10.7h' },
+                uranus: { name: 'Uranus', type: 'Ice Giant', radius: '25,362 km', temp: '-195°C', moons: '27', orbit: '84 years', rotation: '17h' },
+                neptune: { name: 'Neptune', type: 'Ice Giant', radius: '24,622 km', temp: '-200°C', moons: '14', orbit: '165 years', rotation: '16h' }
+            };
+
+            // UI elements
+            const infoCard = document.getElementById('info-card');
+            const planetNameEl = document.getElementById('planet-name');
+            const planetDetailsEl = document.getElementById('planet-details');
+            const closeBtn = document.getElementById('close-card');
+
+            // A-Frame scene and groups
+            const scene = document.querySelector('a-scene');
+            const solarGroup = document.getElementById('solar-system-group');
+            const detailGroup = document.getElementById('detail-group');
+            const detailSphere = document.getElementById('detail-planet');
+            const detailRing = document.getElementById('detail-ring');
+
+            let currentPlanetId = null;
+
+            // Hide card initially
+            infoCard.classList.remove('visible');
+
+            // Close card / back button
+            closeBtn.addEventListener('click', () => {
+                infoCard.classList.remove('visible');
+                // Show full solar system, hide detail group
+                if (solarGroup) solarGroup.setAttribute('visible', 'true');
+                if (detailGroup) detailGroup.setAttribute('visible', 'false');
+                currentPlanetId = null;
+            });
+
+            // Function to show planet detail
+            function showPlanetDetail(planetId) {
+                const data = planetData[planetId];
+                if (!data) return;
+
+                // Update card content
+                planetNameEl.textContent = data.name;
+                planetDetailsEl.innerHTML = `
+                    <p><span>Type</span> <strong>${data.type}</strong></p>
+                    <p><span>Radius</span> <strong>${data.radius}</strong></p>
+                    <p><span>Temperature</span> <strong>${data.temp}</strong></p>
+                    <p><span>Moons</span> <strong>${data.moons}</strong></p>
+                    <p><span>Orbit period</span> <strong>${data.orbit}</strong></p>
+                    <p><span>Rotation</span> <strong>${data.rotation}</strong></p>
+                `;
+
+                // Prepare detail view: set sphere texture and size
+                let textureUrl = '';
+                let isSaturn = (planetId === 'saturn');
+                // Map planetId to image file (same naming convention)
+                const imageMap = {
+                    sun: 'sun.png',
+                    mercury: 'mercury.png',
+                    venus: 'venus.png',
+                    earth: 'earth.png',
+                    mars: 'mars.png',
+                    jupiter: 'jupiter.png',
+                    saturn: 'saturn.png',
+                    uranus: 'uranus.png',
+                    neptune: 'neptune.png'
+                };
+                if (imageMap[planetId]) {
+                    textureUrl = `https://raw.githubusercontent.com/aframevr/sample-assets/master/assets/images/planets/${imageMap[planetId]}`;
+                }
+
+                detailSphere.setAttribute('material', 'src', textureUrl);
+                detailSphere.setAttribute('radius', isSaturn ? '0.4' : '0.5'); // Saturn a bit smaller to show ring
+                detailSphere.setAttribute('color', ''); // remove fallback color
+
+                // Handle Saturn's ring
+                if (isSaturn) {
+                    detailRing.setAttribute('visible', 'true');
+                    detailRing.setAttribute('radius', '0.7');
+                    detailRing.setAttribute('radius-tubular', '0.03');
+                    detailRing.setAttribute('material', 'src', 'https://raw.githubusercontent.com/aframevr/sample-assets/master/assets/images/planets/saturn_ring.png');
+                } else {
+                    detailRing.setAttribute('visible', 'false');
+                }
+
+                // Add spin animation to detail sphere (continuous rotation)
+                detailSphere.setAttribute('animation', {
+                    property: 'rotation',
+                    to: '360 0 0',
+                    dur: planetId === 'jupiter' ? '15000' : '30000', // different speeds
+                    easing: 'linear',
+                    loop: true
+                });
+
+                // Hide solar system, show detail group
+                solarGroup.setAttribute('visible', 'false');
+                detailGroup.setAttribute('visible', 'true');
+                infoCard.classList.add('visible');
+                currentPlanetId = planetId;
+            }
+
+            // Wait for scene to load, then attach click listeners to planets
+            scene.addEventListener('loaded', () => {
+                // Get all clickable entities
+                const clickables = document.querySelectorAll('.clickable');
+                clickables.forEach(el => {
+                    el.addEventListener('click', (evt) => {
+                        evt.stopPropagation();
+                        const planetId = el.getAttribute('id');
+                        if (planetId && planetData[planetId]) {
+                            showPlanetDetail(planetId);
+                        } else {
+                            // fallback if id not recognized
+                            const name = el.getAttribute('data-name') || 'Planet';
+                            // create generic data
+                            planetNameEl.textContent = name;
+                            planetDetailsEl.innerHTML = `<p><span>Info</span> <strong>Selected ${name}</strong></p>`;
+                            solarGroup.setAttribute('visible', 'false');
+                            detailGroup.setAttribute('visible', 'true');
+                            infoCard.classList.add('visible');
+                        }
+                    });
+                });
+
+                // Also ensure clicking on sun works (already has class)
+            });
+
+            // Optional: Handle marker detection (if marker lost, hide card maybe)
+            // Not necessary.
+
+            // Ensure that if user taps outside (on background) we don't close card accidentally.
+            // The close button handles it.
+
+            // Expose function for debugging
+            window.showPlanet = showPlanetDetail;
+        })();
+    </script>
+
+    <!-- Additional notes: 
+        - For better pinch-zoom & pan, we rely on AR.js marker tracking and phone movement.
+        - The model scales naturally as you move toward/away from marker.
+        - To provide extra scale control, you could add a gesture handler, but we kept it simple.
+        - Textures are loaded from aframevr sample assets (public domain-ish). They might not be perfect but illustrate the idea.
+        - All planets have .clickable class; tapping shows glass card and switches to detail view.
+        - Saturn's ring appears in detail view.
+        - The solar system lies flat on the marker (parallel to ground) as requested.
+    -->
 </body>
 </html>
