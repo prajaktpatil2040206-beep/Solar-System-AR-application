@@ -29,7 +29,6 @@
             color: #ccc; padding: 8px 12px; border-radius: 20px; font-size: 12px;
             backdrop-filter: blur(4px); border: 1px solid #555; z-index: 1000;
         }
-        /* simple reset button */
         .reset-btn {
             position: absolute; bottom: 90px; left: 20px; background: #2a3f5e;
             color: white; border: none; padding: 10px 18px; border-radius: 40px;
@@ -38,6 +37,12 @@
             border: 1px solid #5f9ea0; transition: 0.2s;
         }
         .reset-btn:hover { background: #1f2e44; }
+        #camera-error {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8); color: #ff8888; padding: 20px;
+            border-radius: 20px; z-index: 2000; text-align: center;
+            display: none; border: 2px solid red;
+        }
     </style>
 </head>
 <body>
@@ -45,9 +50,11 @@
     <div class="gesture-hint">👆 Two fingers: zoom • drag to rotate model (relative to marker)</div>
     <div id="controls-note">🌞 Planets revolve & spin • moons included • asteroid belt</div>
     <button class="reset-btn" id="resetTransform">↺ reset scale / position</button>
+    <div id="camera-error">❌ Camera not accessible. Please allow camera permission and try again.</div>
 
     <!-- AR Scene -->
-    <a-scene id="scene" embedded arjs="sourceType: webcam; detectionMode: mono; debugUIEnabled: false; trackingMethod: best;" vr-mode-ui="enabled: false" gesture-detector>
+    <!-- REMOVED gesture-detector (undefined component) to prevent initialization failure -->
+    <a-scene id="scene" embedded arjs="sourceType: webcam; detectionMode: mono; debugUIEnabled: false; trackingMethod: best;" vr-mode-ui="enabled: false">
         <!-- Camera (required) -->
         <a-entity camera></a-entity>
         <!-- Light for the scene -->
@@ -57,44 +64,33 @@
         <!-- HIRO marker – everything inside is anchored to the marker, lying flat on ground -->
         <a-marker preset="hiro" id="hiro-marker" emitevents="true" cursor="rayOrigin: mouse">
             <!-- main solar system group – we will apply dynamic scale/offset via gestures -->
-            <!-- initially at unit scale, centered on marker, with Y axis up -->
             <a-entity id="solar-system-root" class="interactable" scale="1 1 1" position="0 0 0" rotation="0 0 0">
                 
                 <!-- === ORBIT RINGS (static, lying flat on XZ plane) === -->
-                <!-- Mercury ring -->
                 <a-ring radius="0.45" radius-tubular="0.002" color="#aaa" material="transparent:true; opacity:0.2" rotation="-90 0 0"></a-ring>
-                <!-- Venus ring -->
                 <a-ring radius="0.65" radius-tubular="0.002" color="#f0c060" material="transparent:true; opacity:0.2" rotation="-90 0 0"></a-ring>
-                <!-- Earth ring -->
                 <a-ring radius="0.85" radius-tubular="0.002" color="#44aaff" material="transparent:true; opacity:0.2" rotation="-90 0 0"></a-ring>
-                <!-- Mars ring -->
                 <a-ring radius="1.05" radius-tubular="0.002" color="#c07a5e" material="transparent:true; opacity:0.2" rotation="-90 0 0"></a-ring>
-                <!-- Asteroid belt ring (dotted) – represented by particles later, but add a faint ring -->
                 <a-ring radius="1.35" radius-tubular="0.004" color="#997755" material="transparent:true; opacity:0.15" rotation="-90 0 0"></a-ring>
-                <!-- Jupiter ring -->
                 <a-ring radius="1.7" radius-tubular="0.004" color="#d4a373" material="transparent:true; opacity:0.2" rotation="-90 0 0"></a-ring>
-                <!-- Saturn ring (main ring later) but orbit ring: -->
                 <a-ring radius="2.1" radius-tubular="0.004" color="#e0c090" material="transparent:true; opacity:0.2" rotation="-90 0 0"></a-ring>
-                <!-- Uranus ring -->
                 <a-ring radius="2.45" radius-tubular="0.004" color="#9fd9e6" material="transparent:true; opacity:0.2" rotation="-90 0 0"></a-ring>
-                <!-- Neptune ring -->
                 <a-ring radius="2.75" radius-tubular="0.004" color="#4a7db5" material="transparent:true; opacity:0.2" rotation="-90 0 0"></a-ring>
 
                 <!-- *** SUN at center *** -->
                 <a-sphere id="sun" radius="0.28" color="#ffaa33" material="emissive:#ff5500; src: url(https://cdn.aframe.io/test-models/assets/planet-sun.png); repeat:1 1;" position="0 0 0"></a-sphere>
 
                 <!-- ========== PLANETS with revolution & rotation ========== -->
-                <!-- each planet is inside a group that rotates around Y (revolution) -->
                 <!-- Mercury -->
-                <a-entity class="planet-group" rotation="0 0 0" data-speed="3500">
-                    <a-sphere class="planet" radius="0.055" color="#b0b0b0" material="src: url(https://raw.githubusercontent.com/aframevr/sample-assets/master/assets/images/planets/mercury.jpg); repeat:1 1;" position="0.45 0 0">
-                        <a-animation attribute="rotation" to="360 0 0" dur="80" easing="linear" repeat="indefinite"></a-animation> <!-- spin -->
+                <a-entity class="planet-group" rotation="0 0 0">
+                    <a-sphere class="planet" radius="0.055" color="#b0b0b0" material="src: https://raw.githubusercontent.com/aframevr/sample-assets/master/assets/images/planets/mercury.jpg; repeat:1 1;" position="0.45 0 0">
+                        <a-animation attribute="rotation" to="360 0 0" dur="80" easing="linear" repeat="indefinite"></a-animation>
                     </a-sphere>
                     <a-animation attribute="rotation" to="0 360 0" dur="3500" easing="linear" repeat="indefinite"></a-animation>
                 </a-entity>
 
                 <!-- Venus -->
-                <a-entity class="planet-group" rotation="0 60 0" data-speed="5000">
+                <a-entity class="planet-group" rotation="0 60 0">
                     <a-sphere class="planet" radius="0.065" color="#f0c060" material="src: https://raw.githubusercontent.com/aframevr/sample-assets/master/assets/images/planets/venus.jpg; repeat:1 1;" position="0.65 0 0">
                         <a-animation attribute="rotation" to="360 0 0" dur="100" easing="linear" repeat="indefinite"></a-animation>
                     </a-sphere>
@@ -102,8 +98,7 @@
                 </a-entity>
 
                 <!-- Earth + Moon -->
-                <a-entity class="planet-group" rotation="0 120 0" data-speed="6200">
-                    <!-- Earth sphere -->
+                <a-entity class="planet-group" rotation="0 120 0">
                     <a-sphere class="planet" id="earth" radius="0.07" color="#2a7fff" material="src: https://cdn.aframe.io/test-models/assets/planet-earth.png; repeat:1 1;" position="0.85 0 0">
                         <a-animation attribute="rotation" to="360 0 0" dur="60" easing="linear" repeat="indefinite"></a-animation>
                     </a-sphere>
@@ -116,7 +111,7 @@
                 </a-entity>
 
                 <!-- Mars + 2 tiny moons (Phobos & Deimos) -->
-                <a-entity class="planet-group" rotation="0 180 0" data-speed="7800">
+                <a-entity class="planet-group" rotation="0 180 0">
                     <a-sphere radius="0.06" color="#c07a5e" material="src: https://raw.githubusercontent.com/aframevr/sample-assets/master/assets/images/planets/mars.jpg; repeat:1 1;" position="1.05 0 0">
                         <a-animation attribute="rotation" to="360 0 0" dur="70" easing="linear" repeat="indefinite"></a-animation>
                     </a-sphere>
@@ -134,13 +129,10 @@
                 </a-entity>
 
                 <!-- Asteroid belt (particle ring) -->
-                <a-entity position="0 0 0" id="asteroid-belt">
-                    <!-- generate 60 small rocks in a ring radius ~1.35-1.45 -->
-                    <a-entity asteroids="count: 60; radius: 1.4; color: #aa8866"></a-entity>
-                </a-entity>
+                <a-entity position="0 0 0" id="asteroid-belt" asteroids="count: 60; radius: 1.4; color: #aa8866"></a-entity>
 
                 <!-- Jupiter + 3 moons (Io, Europa, Ganymede simplified) -->
-                <a-entity class="planet-group" rotation="0 240 0" data-speed="11000">
+                <a-entity class="planet-group" rotation="0 240 0">
                     <a-sphere radius="0.12" color="#d4a373" material="src: https://raw.githubusercontent.com/aframevr/sample-assets/master/assets/images/planets/jupiter.jpg; repeat:1 1;" position="1.7 0 0">
                         <a-animation attribute="rotation" to="360 0 0" dur="50" easing="linear" repeat="indefinite"></a-animation>
                     </a-sphere>
@@ -163,11 +155,10 @@
                 </a-entity>
 
                 <!-- Saturn with rings -->
-                <a-entity class="planet-group" rotation="0 300 0" data-speed="14000">
+                <a-entity class="planet-group" rotation="0 300 0">
                     <a-sphere radius="0.1" color="#e0bb87" material="src: https://raw.githubusercontent.com/aframevr/sample-assets/master/assets/images/planets/saturn.jpg; repeat:1 1;" position="2.1 0 0">
                         <a-animation attribute="rotation" to="360 0 0" dur="55" easing="linear" repeat="indefinite"></a-animation>
                     </a-sphere>
-                    <!-- Saturn's rings (torus) -->
                     <a-torus radius="0.18" radius-tubular="0.012" color="#c0b0a0" material="transparent:true; opacity:0.5" rotation="90 0 0" position="2.1 0 0"></a-torus>
                     <a-torus radius="0.22" radius-tubular="0.006" color="#a09070" material="transparent:true; opacity:0.4" rotation="90 0 0" position="2.1 0 0"></a-torus>
                     <!-- one moon Titan -->
@@ -179,7 +170,7 @@
                 </a-entity>
 
                 <!-- Uranus -->
-                <a-entity class="planet-group" rotation="0 30 0" data-speed="17000">
+                <a-entity class="planet-group" rotation="0 30 0">
                     <a-sphere radius="0.08" color="#9fd9e6" material="src: https://raw.githubusercontent.com/aframevr/sample-assets/master/assets/images/planets/uranus.jpg; repeat:1 1;" position="2.45 0 0">
                         <a-animation attribute="rotation" to="360 0 0" dur="65" easing="linear" repeat="indefinite"></a-animation>
                     </a-sphere>
@@ -192,7 +183,7 @@
                 </a-entity>
 
                 <!-- Neptune -->
-                <a-entity class="planet-group" rotation="0 150 0" data-speed="20000">
+                <a-entity class="planet-group" rotation="0 150 0">
                     <a-sphere radius="0.08" color="#4a7db5" material="src: https://raw.githubusercontent.com/aframevr/sample-assets/master/assets/images/planets/neptune.jpg; repeat:1 1;" position="2.75 0 0">
                         <a-animation attribute="rotation" to="360 0 0" dur="70" easing="linear" repeat="indefinite"></a-animation>
                     </a-sphere>
@@ -208,14 +199,11 @@
                 <a-entity stars="count: 150; radius: 3.5;"></a-entity>
             </a-entity> <!-- /solar-system-root -->
         </a-marker>
-
-        <!-- simple ground/arrow hint (optional, not tracked) -->
-        <a-entity position="0 -0.5 0" rotation="-90 0 0" visible="false"></a-entity>
     </a-scene>
 
-    <!-- Custom components: asteroids, stars, and gesture handler (pinch zoom + pan) -->
+    <!-- Custom components: asteroids, stars, and gesture handler -->
     <script>
-        // Register A-Frame components for procedural asteroids and stars
+        // Register A-Frame components
         AFRAME.registerComponent('asteroids', {
             schema: {
                 count: {type: 'number', default: 50},
@@ -226,11 +214,10 @@
                 const data = this.data;
                 for (let i = 0; i < data.count; i++) {
                     const angle = (i / data.count) * Math.PI * 2;
-                    // random offset in radius to make it belt-like
                     const r = data.radius + (Math.random() * 0.2 - 0.1);
                     const x = Math.cos(angle) * r;
                     const z = Math.sin(angle) * r;
-                    const y = (Math.random() * 0.1) - 0.05; // slight vertical variation
+                    const y = (Math.random() * 0.1) - 0.05;
                     const size = 0.02 + Math.random() * 0.02;
                     const asteroid = document.createElement('a-sphere');
                     asteroid.setAttribute('radius', size);
@@ -265,18 +252,14 @@
             }
         });
 
-        // ----- Gesture handling for pinch zoom & two-finger pan (relative to marker) -----
-        // We target the solar-system-root entity and modify scale & position.
-        // Hammer.js attached to the whole scene canvas.
+        // Gesture handler for pinch zoom and two-finger pan
         AFRAME.registerComponent('gesture-handler', {
             init: function() {
                 this.targetEl = document.getElementById('solar-system-root');
                 if (!this.targetEl) return;
                 this.initialScale = this.targetEl.object3D.scale.x;
-                this.initialPos = this.targetEl.object3D.position.clone();
-                // store base values
                 this.scale = 1;
-                this.deltaX = 0; this.deltaY = 0; this.deltaZ = 0; // relative translation
+                this.deltaX = 0; this.deltaZ = 0;
                 
                 const canvas = document.querySelector('canvas');
                 if (!canvas) return;
@@ -284,33 +267,25 @@
                 this.hammer.get('pinch').set({ enable: true });
                 this.hammer.get('pan').set({ direction: Hammer.DIRECTION_ALL, threshold: 5 });
                 
-                // pinch zoom
                 this.hammer.on('pinchmove', (ev) => {
                     this.scale = Math.max(0.5, Math.min(2.5, this.initialScale * ev.scale));
                     this.targetEl.object3D.scale.set(this.scale, this.scale, this.scale);
                 });
                 
-                // two-finger pan (move model in X/Z plane relative to marker)
                 this.hammer.on('panmove', (ev) => {
-                    if (ev.maxPointers === 2) { // two-finger pan
-                        // deltaX, deltaY from screen movement -> roughly map to world X and Z
-                        // sensitivity factor
+                    if (ev.maxPointers === 2) {
                         const sens = 0.003;
-                        // In marker space: X = right, Z = up (camera view), but we want horizontal plane XZ.
-                        // For simplicity, use X and Y screen to move in XZ plane.
                         this.deltaX += ev.deltaX * sens;
-                        this.deltaZ -= ev.deltaY * sens; // inverted Y
-                        // clamp to reasonable offset
+                        this.deltaZ -= ev.deltaY * sens;
                         this.deltaX = Math.max(-0.8, Math.min(0.8, this.deltaX));
                         this.deltaZ = Math.max(-0.8, Math.min(0.8, this.deltaZ));
                         this.targetEl.object3D.position.set(this.deltaX, 0, this.deltaZ);
                     }
                 });
                 
-                // reset button functionality
                 document.getElementById('resetTransform').addEventListener('click', () => {
                     this.scale = 1;
-                    this.deltaX = 0; this.deltaY = 0; this.deltaZ = 0;
+                    this.deltaX = 0; this.deltaZ = 0;
                     this.targetEl.object3D.scale.set(1, 1, 1);
                     this.targetEl.object3D.position.set(0, 0, 0);
                     this.initialScale = 1;
@@ -321,22 +296,24 @@
             }
         });
 
-        // Initialize gesture handler when scene is loaded
+        // Initialize gesture handler and camera error handling
         window.addEventListener('load', function() {
-            document.querySelector('a-scene').addEventListener('loaded', function() {
-                const scene = document.querySelector('a-scene');
+            const scene = document.querySelector('a-scene');
+            scene.addEventListener('loaded', function() {
                 scene.setAttribute('gesture-handler', '');
             });
+            
+            // Detect camera failure (simple timeout)
+            setTimeout(() => {
+                const video = document.querySelector('video');
+                if (!video || video.readyState === 0) {
+                    document.getElementById('camera-error').style.display = 'block';
+                }
+            }, 3000);
         });
     </script>
 
-    <!-- ensure all textures load (fallback color if missing) -->
-    <script>
-        // optional: preload textures and set fallback colors. 
-        // already handled by material color fallback.
-    </script>
-
-    <!-- Explanation: marker parallel to ground, model floats above -->
+    <!-- small note -->
     <div style="position: absolute; bottom: 140px; left: 20px; color: #ccc; background: rgba(0,0,0,0.4); padding: 5px 10px; border-radius: 20px; font-size: 12px; z-index: 1000;">
         ⬤ model parallel to marker • planets revolve & spin • moons & asteroids
     </div>
