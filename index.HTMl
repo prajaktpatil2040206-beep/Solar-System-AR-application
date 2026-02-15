@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AR Solar System on QR</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; overflow: hidden; background: #0a0a0a; color: #fff; }
+        .header {
+            position: fixed; top: 0; left: 0; right: 0; height: 60px;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            display: flex; align-items: center; padding: 0 20px; z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5); border-bottom: 1px solid #2a2a4a;
+        }
+        .header h1 {
+            font-size: 24px; background: linear-gradient(45deg, #ffd700, #ff6b35, #ff3366);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        .header-controls { margin-left: auto; display: flex; gap: 15px; align-items: center; flex-wrap: wrap; }
+        .header-controls label { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #aaa; }
+        .header-controls input[type="range"] { width: 100px; }
+        .sidebar {
+            position: fixed; top: 60px; left: 0; width: 250px; height: calc(100vh - 60px);
+            background: linear-gradient(180deg, #1a1a2e 0%, #0f0f1a 100%);
+            padding: 20px; z-index: 99; overflow-y: auto; border-right: 1px solid #2a2a4a;
+        }
+        .sidebar h2 { font-size: 16px; color: #888; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 2px; }
+        .planet-list { list-style: none; }
+        .planet-item {
+            display: flex; align-items: center; padding: 12px 15px; margin-bottom: 8px;
+            background: rgba(255,255,255,0.05); border-radius: 8px; cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .planet-item:hover { background: rgba(255,255,255,0.1); transform: translateX(5px); }
+        .planet-item.active { background: rgba(255,215,0,0.2); border-left: 3px solid #ffd700; }
+        .planet-color { width: 20px; height: 20px; border-radius: 50%; margin-right: 12px; box-shadow: 0 0 10px currentColor; }
+        .planet-info { flex: 1; }
+        .planet-name { font-size: 14px; font-weight: 600; }
+        .planet-distance { font-size: 11px; color: #666; margin-top: 2px; }
+        .main-content { position: fixed; top: 60px; left: 250px; right: 0; bottom: 0; overflow: hidden; }
+        #ar-canvas { width: 100%; height: 100%; display: block; }
+        .info-panel {
+            position: absolute; bottom: 20px; right: 20px; background: rgba(26,26,46,0.95);
+            padding: 20px; border-radius: 12px; border: 1px solid #2a2a4a; max-width: 380px;
+            max-height: calc(100vh - 120px); overflow-y: auto; display: none; z-index: 200;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+        }
+        .info-panel.visible { display: block; }
+        .info-panel h3 { color: #ffd700; margin-bottom: 5px; font-size: 20px; }
+        .info-panel .info-type { color: #888; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+        .info-panel .info-description { font-size: 13px; color: #ccc; line-height: 1.6; margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 15px; }
+        .info-panel .info-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .info-panel .stat-item { background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px; }
+        .info-panel .stat-label { font-size: 10px; color: #666; text-transform: uppercase; }
+        .info-panel .stat-value { font-size: 14px; color: #fff; font-weight: bold; margin-top: 3px; }
+        .info-panel .wiki-link {
+            display: inline-flex; align-items: center; gap: 6px; background: linear-gradient(135deg, #1a5fb4, #3584e4);
+            color: white; text-decoration: none; padding: 10px 16px; border-radius: 8px; font-size: 13px;
+            font-weight: bold; transition: all 0.3s ease; width: 100%; justify-content: center;
+        }
+        .info-panel .wiki-link:hover { background: linear-gradient(135deg, #2a6fc4, #4594f4); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(53,132,228,0.4); }
+        .controls-hint {
+            position: absolute; bottom: 20px; left: 20px; background: rgba(26,26,46,0.9);
+            padding: 15px; border-radius: 8px; font-size: 12px; color: #666; z-index: 200;
+        }
+        .controls-hint kbd { background: #333; padding: 2px 6px; border-radius: 3px; margin: 0 2px; }
+        .qr-hint {
+            position: absolute; top: 80px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.8); color: #ffd700; padding: 12px 24px;
+            border-radius: 40px; font-size: 16px; border: 1px solid #ffd700;
+            z-index: 300; pointer-events: none; backdrop-filter: blur(4px);
+            box-shadow: 0 0 20px rgba(255,215,0,0.3);
+        }
+        .tour-button { background: linear-gradient(135deg, #4a00e0, #8e2de2); border: none; color: white; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-size: 14px; font-weight: bold; transition: all 0.3s ease; box-shadow: 0 2px 10px rgba(142,45,226,0.4); }
+        .tour-button:hover { background: linear-gradient(135deg, #5a10f0, #9e3df2); transform: scale(1.05); }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>🌌 AR Solar System on QR</h1>
+        <div class="header-controls">
+            <label>Speed: <input type="range" id="speed-control" min="0" max="5" step="0.1" value="1"></label>
+            <label><input type="checkbox" id="orbit-toggle" checked> Show Orbits</label>
+            <label><input type="checkbox" id="labels-toggle" checked> Show Labels</label>
+            <label style="color: #99ff99;"><input type="checkbox" id="asteroids-toggle" checked> Asteroids</label>
+            <label style="color: #aaddff;"><input type="checkbox" id="comets-toggle" checked> Comets</label>
+            <button id="tour-btn" class="tour-button" style="display:none;">🚀 Tour</button> <!-- Tour disabled in AR -->
+        </div>
+    </header>
+
+    <aside class="sidebar">
+        <h2>Celestial Bodies</h2>
+        <ul class="planet-list" id="planet-list"></ul>
+    </aside>
+
+    <main class="main-content">
+        <div id="ar-canvas"></div>
+        <div class="qr-hint" id="qr-hint">🔍 Point camera at QR code with text "SOLARSYSTEM"</div>
+        <div class="info-panel" id="info-panel">
+            <h3 id="info-name"></h3>
+            <div class="info-type" id="info-type"></div>
+            <p class="info-description" id="info-description"></p>
+            <div class="info-stats" id="info-stats"></div>
+            <div class="info-facts" id="info-facts"></div>
+            <a class="wiki-link" id="wiki-link" href="#" target="_blank">📖 Read more on Wikipedia</a>
+        </div>
+        <div class="controls-hint">
+            <kbd>Move camera</kbd> to explore | QR code must be visible
+        </div>
+    </main>
+
+    <!-- Three.js and AR.js -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+    <script src="https://raw.githubusercontent.com/AR-js-org/AR.js/master/three.js/build/artoolkit.min.js"></script>
+    <script src="https://raw.githubusercontent.com/AR-js-org/AR.js/master/three.js/build/ar-threex.js"></script>
+    <script src="https://raw.githubusercontent.com/AR-js-org/AR.js/master/three.js/build/ar-threex-barcode.js"></script>
+
+    <script>
+        (function() {
+            // ==================== FULL CELESTIAL DATA (copied from original) ====================
+            const planetData = [
+                { name: 'Sun', radius: 5, distance: 0, color: 0xffff00, emissive: true, speed: 0, type: 'star', description: 'The Sun is the star at the center of our Solar System. It is a nearly perfect ball of hot plasma that provides the energy necessary for life on Earth.', wiki: 'https://en.wikipedia.org/wiki/Sun', mass: '1.989 × 10³⁰ kg', diameter: '1,392,700 km', surfaceTemp: '5,500°C', age: '4.6 billion years', composition: '73% Hydrogen, 25% Helium', facts: ['Contains 99.86% of the Solar System mass', 'Light takes 8 minutes to reach Earth', 'Core temperature is 15 million °C', 'Will become a red giant in 5 billion years'] },
+                { name: 'Mercury', radius: 0.4, distance: 10, color: 0x8c7853, speed: 4.74, type: 'planet', description: 'Mercury is the smallest planet and closest to the Sun. Despite being nearest to the Sun, it is not the hottest planet due to its lack of atmosphere.', wiki: 'https://en.wikipedia.org/wiki/Mercury_(planet)', mass: '3.285 × 10²³ kg', diameter: '4,879 km', dayLength: '59 Earth days', yearLength: '88 Earth days', numMoons: '0', surfaceTemp: '-180°C to 430°C', facts: ['Smallest planet in our solar system', 'Has no atmosphere to retain heat', 'Most cratered planet', 'Has ice in permanently shadowed craters'] },
+                { name: 'Venus', radius: 0.9, distance: 15, color: 0xffc649, speed: 3.5, type: 'planet', description: 'Venus is the hottest planet in our solar system due to its thick atmosphere that traps heat. It rotates backwards compared to most planets.', wiki: 'https://en.wikipedia.org/wiki/Venus', mass: '4.867 × 10²⁴ kg', diameter: '12,104 km', dayLength: '243 Earth days', yearLength: '225 Earth days', numMoons: '0', surfaceTemp: '465°C', facts: ['Hottest planet in the solar system', 'Rotates backwards (retrograde)', 'A day is longer than a year', 'Atmospheric pressure 90x Earth'] },
+                { name: 'Earth', radius: 1, distance: 20, color: 0x6b93d6, speed: 2.98, type: 'planet', description: 'Earth is our home planet and the only known place in the universe where life exists. It has liquid water on its surface and a protective magnetic field.', wiki: 'https://en.wikipedia.org/wiki/Earth', mass: '5.972 × 10²⁴ kg', diameter: '12,742 km', dayLength: '24 hours', yearLength: '365.25 days', numMoons: '1', surfaceTemp: '-89°C to 57°C', facts: ['Only planet known to harbor life', '71% of surface is water', 'Has a magnetic field protecting from solar wind', 'Tilted 23.5° creating seasons'], moons: [ { name: 'Moon', radius: 0.27, distance: 2, color: 0xaaaaaa, speed: 8, description: 'The Moon is Earth\'s only natural satellite.', wiki: 'https://en.wikipedia.org/wiki/Moon', diameter: '3,474 km', orbitalPeriod: '27.3 days', facts: ['Causes tides on Earth', 'Same side always faces Earth', '12 humans have walked on it'] } ] },
+                { name: 'Mars', radius: 0.5, distance: 25, color: 0xc1440e, speed: 2.41, type: 'planet', description: 'Mars is known as the Red Planet due to iron oxide on its surface. It has the largest volcano and canyon system.', wiki: 'https://en.wikipedia.org/wiki/Mars', mass: '6.39 × 10²³ kg', diameter: '6,779 km', dayLength: '24.6 hours', yearLength: '687 Earth days', numMoons: '2', surfaceTemp: '-140°C to 20°C', facts: ['Has the largest volcano: Olympus Mons', 'Valles Marineris is 4,000 km long', 'Has seasons like Earth', 'Multiple rovers have explored it'], moons: [ { name: 'Phobos', radius: 0.08, distance: 1.2, color: 0x8b7355, speed: 15, description: 'Phobos is the larger of Mars\' two moons.', wiki: 'https://en.wikipedia.org/wiki/Phobos_(moon)', diameter: '22.4 km', orbitalPeriod: '7.7 hours', facts: ['Will crash into Mars in 50 million years', 'Orbits 3 times per Martian day'] }, { name: 'Deimos', radius: 0.05, distance: 1.8, color: 0x9b8b7a, speed: 10, description: 'Deimos is the smaller and outermost of Mars\' two moons.', wiki: 'https://en.wikipedia.org/wiki/Deimos_(moon)', diameter: '12.4 km', orbitalPeriod: '30.3 hours', facts: ['Smallest known moon in solar system', 'Slowly moving away from Mars'] } ] },
+                { name: 'Jupiter', radius: 2.5, distance: 35, color: 0xd8ca9d, speed: 1.31, type: 'planet', description: 'Jupiter is the largest planet. Its Great Red Spot is a storm larger than Earth.', wiki: 'https://en.wikipedia.org/wiki/Jupiter', mass: '1.898 × 10²⁷ kg', diameter: '139,820 km', dayLength: '9.9 hours', yearLength: '12 Earth years', numMoons: '95', surfaceTemp: '-145°C (cloud tops)', facts: ['Largest planet', 'Great Red Spot is 1.3x Earth size', 'Has the strongest magnetic field', 'Could fit 1,300 Earths inside'], moons: [ { name: 'Io', radius: 0.28, distance: 4, color: 0xffff66, speed: 12, description: 'Io is the most volcanically active body.', wiki: 'https://en.wikipedia.org/wiki/Io_(moon)', diameter: '3,643 km', orbitalPeriod: '1.77 days', facts: ['Over 400 active volcanoes', 'Sulfur gives it yellow color', 'Tidally heated by Jupiter'] }, { name: 'Europa', radius: 0.25, distance: 4.8, color: 0xc9b896, speed: 9, description: 'Europa has a subsurface ocean.', wiki: 'https://en.wikipedia.org/wiki/Europa_(moon)', diameter: '3,122 km', orbitalPeriod: '3.55 days', facts: ['May have 2x Earth\'s water', 'Possible habitat for life', 'Ice shell is 15-25 km thick'] }, { name: 'Ganymede', radius: 0.41, distance: 5.8, color: 0x8b8682, speed: 6, description: 'Ganymede is the largest moon.', wiki: 'https://en.wikipedia.org/wiki/Ganymede_(moon)', diameter: '5,268 km', orbitalPeriod: '7.15 days', facts: ['Largest moon in solar system', 'Has its own magnetic field', 'Larger than Mercury'] }, { name: 'Callisto', radius: 0.38, distance: 7, color: 0x5c5346, speed: 4, description: 'Callisto is the most heavily cratered object.', wiki: 'https://en.wikipedia.org/wiki/Callisto_(moon)', diameter: '4,821 km', orbitalPeriod: '16.7 days', facts: ['Most cratered object', 'May have subsurface ocean', 'Ancient, unchanged surface'] } ] },
+                { name: 'Saturn', radius: 2.2, distance: 45, color: 0xead6b8, speed: 0.97, hasRings: true, type: 'planet', description: 'Saturn is famous for its stunning ring system.', wiki: 'https://en.wikipedia.org/wiki/Saturn', mass: '5.683 × 10²⁶ kg', diameter: '116,460 km', dayLength: '10.7 hours', yearLength: '29 Earth years', numMoons: '146', surfaceTemp: '-178°C', facts: ['Rings span 282,000 km', 'Less dense than water', 'Has 146 known moons', 'Winds reach 1,800 km/h'], moons: [ { name: 'Titan', radius: 0.4, distance: 5, color: 0xe8b86d, speed: 5, description: 'Titan has a dense atmosphere and lakes.', wiki: 'https://en.wikipedia.org/wiki/Titan_(moon)', diameter: '5,150 km', orbitalPeriod: '16 days', facts: ['Has lakes of liquid methane', 'Dense nitrogen atmosphere', 'Larger than Mercury'] }, { name: 'Enceladus', radius: 0.15, distance: 3.5, color: 0xffffff, speed: 10, description: 'Enceladus has geysers.', wiki: 'https://en.wikipedia.org/wiki/Enceladus', diameter: '504 km', orbitalPeriod: '1.4 days', facts: ['Geysers shoot ice into space', 'Has hydrothermal vents', 'Top candidate for life'] }, { name: 'Mimas', radius: 0.1, distance: 3, color: 0xcccccc, speed: 14, description: 'Mimas looks like the Death Star.', wiki: 'https://en.wikipedia.org/wiki/Mimas_(moon)', diameter: '396 km', orbitalPeriod: '22.6 hours', facts: ['Looks like the Death Star', 'Herschel crater is 130 km wide', 'Smallest spherical moon'] } ] },
+                { name: 'Uranus', radius: 1.5, distance: 55, color: 0xd1e7e7, speed: 0.68, type: 'planet', description: 'Uranus rotates on its side.', wiki: 'https://en.wikipedia.org/wiki/Uranus', mass: '8.681 × 10²⁵ kg', diameter: '50,724 km', dayLength: '17.2 hours', yearLength: '84 Earth years', numMoons: '28', surfaceTemp: '-224°C', facts: ['Rotates on its side (98° tilt)', 'Coldest planetary atmosphere', 'Has 13 known rings', 'First planet discovered by telescope'], moons: [ { name: 'Titania', radius: 0.12, distance: 3, color: 0xaabbcc, speed: 7, description: 'Titania is the largest moon of Uranus.', wiki: 'https://en.wikipedia.org/wiki/Titania_(moon)', diameter: '1,578 km', orbitalPeriod: '8.7 days', facts: ['Largest moon of Uranus', 'Has enormous canyons', 'May have subsurface ocean'] }, { name: 'Oberon', radius: 0.12, distance: 3.8, color: 0x998877, speed: 5, description: 'Oberon is the second largest.', wiki: 'https://en.wikipedia.org/wiki/Oberon_(moon)', diameter: '1,523 km', orbitalPeriod: '13.5 days', facts: ['Second largest Uranian moon', 'Very heavily cratered', 'Has a large mountain'] } ] },
+                { name: 'Neptune', radius: 1.4, distance: 65, color: 0x5b5ddf, speed: 0.54, type: 'planet', description: 'Neptune is the windiest planet.', wiki: 'https://en.wikipedia.org/wiki/Neptune', mass: '1.024 × 10²⁶ kg', diameter: '49,244 km', dayLength: '16 hours', yearLength: '165 Earth years', numMoons: '16', surfaceTemp: '-218°C', facts: ['Strongest winds in solar system', 'Found by math before observation', 'Has 5 main rings', 'Great Dark Spot was Earth-sized'], moons: [ { name: 'Triton', radius: 0.21, distance: 3.5, color: 0xd4c4b0, speed: 6, description: 'Triton orbits Neptune backwards.', wiki: 'https://en.wikipedia.org/wiki/Triton_(moon)', diameter: '2,707 km', orbitalPeriod: '5.9 days (retrograde)', facts: ['Orbits backwards', 'Has nitrogen geysers', 'Will be destroyed in 3.6 billion years'] } ] }
+            ];
+
+            const dwarfPlanetData = [
+                { name: 'Ceres', radius: 0.3, distance: 30, color: 0x8b8378, speed: 1.8, type: 'dwarf', description: 'Ceres is the largest object in the asteroid belt.', wiki: 'https://en.wikipedia.org/wiki/Ceres_(dwarf_planet)', mass: '9.39 × 10²⁰ kg', diameter: '940 km', dayLength: '9 hours', yearLength: '4.6 Earth years', discoveredBy: 'Giuseppe Piazzi (1801)', facts: ['Largest object in asteroid belt', 'Has subsurface ocean', 'Bright spots are salt deposits', 'Visited by Dawn spacecraft'], moons: [] },
+                { name: 'Pluto', radius: 0.35, distance: 75, color: 0xddccbb, speed: 0.47, type: 'dwarf', description: 'Pluto has a heart-shaped glacier.', wiki: 'https://en.wikipedia.org/wiki/Pluto', mass: '1.31 × 10²² kg', diameter: '2,377 km', dayLength: '6.4 Earth days', yearLength: '248 Earth years', numMoons: '5', discoveredBy: 'Clyde Tombaugh (1930)', facts: ['Has 5 moons', 'Heart-shaped glacier', 'Has blue skies and red snow', 'Smaller than Earth\'s Moon'], moons: [ { name: 'Charon', radius: 0.18, distance: 1.5, color: 0x888888, speed: 8, description: 'Charon is so large they orbit a common center.', wiki: 'https://en.wikipedia.org/wiki/Charon_(moon)', diameter: '1,212 km', orbitalPeriod: '6.4 days', facts: ['Half the size of Pluto', 'Tidally locked to Pluto', 'May have had subsurface ocean'] } ] },
+                { name: 'Haumea', radius: 0.25, distance: 82, color: 0xeeeeee, speed: 0.35, type: 'dwarf', description: 'Haumea has an elongated shape due to rapid rotation.', wiki: 'https://en.wikipedia.org/wiki/Haumea', mass: '4.01 × 10²¹ kg', diameter: '1,632 km (longest axis)', dayLength: '3.9 hours', yearLength: '284 Earth years', numMoons: '2', discoveredBy: 'Brown, Rabinowitz, Trujillo (2004)', facts: ['Fastest rotating dwarf planet', 'Has two small moons', 'Shaped like an ellipsoid', 'Has a ring system'], moons: [] },
+                { name: 'Makemake', radius: 0.25, distance: 88, color: 0xcc9966, speed: 0.3, type: 'dwarf', description: 'Makemake is one of the brightest objects in the Kuiper Belt.', wiki: 'https://en.wikipedia.org/wiki/Makemake', mass: '3.1 × 10²¹ kg', diameter: '1,430 km', dayLength: '22.5 hours', yearLength: '306 Earth years', numMoons: '1', discoveredBy: 'Michael Brown (2005)', facts: ['Second brightest Kuiper Belt object', 'Named after Easter Island god', 'Has one known moon', 'Extremely cold: -240°C'], moons: [] },
+                { name: 'Eris', radius: 0.36, distance: 95, color: 0xbbbbbb, speed: 0.25, type: 'dwarf', description: 'Eris is the most massive known dwarf planet.', wiki: 'https://en.wikipedia.org/wiki/Eris_(dwarf_planet)', mass: '1.66 × 10²² kg', diameter: '2,326 km', dayLength: '25.9 hours', yearLength: '558 Earth years', numMoons: '1', discoveredBy: 'Michael Brown (2005)', facts: ['Most massive dwarf planet', 'Named after goddess of discord', 'Caused Pluto\'s reclassification', 'Three times farther than Pluto'], moons: [ { name: 'Dysnomia', radius: 0.1, distance: 1.5, color: 0x666666, speed: 6, description: 'Dysnomia is the only known moon of Eris.', wiki: 'https://en.wikipedia.org/wiki/Dysnomia_(moon)', diameter: '700 km', orbitalPeriod: '15.8 days', facts: ['Named after spirit of lawlessness', 'Used to measure Eris\'s mass'] } ] }
+            ];
+
+            const asteroidData = [
+                { name: 'Vesta', radius: 0.18, distance: 28, color: 0x9a9a8a, speed: 1.9, type: 'asteroid', orbitTilt: 0.1, description: 'Vesta is the second-largest asteroid.', wiki: 'https://en.wikipedia.org/wiki/4_Vesta', diameter: '525 km', mass: '2.59 × 10²⁰ kg', discoveredBy: 'Heinrich Olbers (1807)', facts: ['Second largest asteroid', 'Has a giant south pole crater', 'Visited by Dawn spacecraft', 'Source of HED meteorites'] },
+                { name: 'Pallas', radius: 0.17, distance: 29, color: 0x7a7a6a, speed: 1.85, type: 'asteroid', orbitTilt: 0.6, description: 'Pallas has one of the most inclined orbits.', wiki: 'https://en.wikipedia.org/wiki/2_Pallas', diameter: '512 km', mass: '2.04 × 10²⁰ kg', discoveredBy: 'Heinrich Olbers (1802)', facts: ['Third largest asteroid', 'Highly inclined orbit', 'Never been visited by spacecraft', 'Named after Athena Pallas'] },
+                { name: 'Hygiea', radius: 0.14, distance: 31, color: 0x5a5a4a, speed: 1.75, type: 'asteroid', orbitTilt: 0.08, description: 'Hygiea may be reclassified as a dwarf planet.', wiki: 'https://en.wikipedia.org/wiki/10_Hygiea', diameter: '434 km', mass: '8.7 × 10¹⁹ kg', discoveredBy: 'Annibale de Gasparis (1849)', facts: ['Fourth largest asteroid', 'Nearly spherical shape', 'May be a dwarf planet', 'Named after goddess of health'] },
+                { name: 'Interamnia', radius: 0.11, distance: 32, color: 0x6b6b5b, speed: 1.7, type: 'asteroid', orbitTilt: 0.3, description: 'Interamnia is one of the largest main-belt asteroids.', wiki: 'https://en.wikipedia.org/wiki/704_Interamnia', diameter: '332 km', mass: '3.9 × 10¹⁹ kg', discoveredBy: 'Vincenzo Cerulli (1910)', facts: ['Fifth largest asteroid', 'F-type asteroid', 'Named after Latin name for Teramo', 'Very dark surface'] },
+                { name: 'Eros', radius: 0.06, distance: 17, color: 0xaa9988, speed: 2.8, type: 'asteroid', orbitTilt: 0.18, description: 'Eros was the first asteroid to be orbited and landed on.', wiki: 'https://en.wikipedia.org/wiki/433_Eros', diameter: '16.8 km', mass: '6.69 × 10¹⁵ kg', discoveredBy: 'Carl Witt (1898)', facts: ['First near-Earth asteroid discovered', 'NEAR Shoemaker landed on it', 'Peanut-shaped', 'Named after god of love'] },
+                { name: 'Bennu', radius: 0.03, distance: 18, color: 0x555544, speed: 2.6, type: 'asteroid', orbitTilt: 0.1, description: 'Bennu is a near-Earth asteroid from which OSIRIS-REx returned samples.', wiki: 'https://en.wikipedia.org/wiki/101955_Bennu', diameter: '490 m', mass: '7.3 × 10¹⁰ kg', discoveredBy: 'LINEAR (1999)', facts: ['Samples returned to Earth', 'Rubble pile asteroid', 'Potentially hazardous', 'Named via student contest'] },
+                { name: 'Apophis', radius: 0.04, distance: 19, color: 0x666655, speed: 2.5, type: 'asteroid', orbitTilt: 0.05, description: 'Apophis will pass extremely close to Earth in 2029.', wiki: 'https://en.wikipedia.org/wiki/99942_Apophis', diameter: '370 m', mass: '2.7 × 10¹⁰ kg', discoveredBy: 'R. Tucker, D. Tholen, F. Bernardi (2004)', facts: ['Will pass within 31,000 km in 2029', 'Named after Egyptian god of chaos', 'Visible to naked eye in 2029', 'No impact risk for 100+ years'] },
+                { name: 'Itokawa', radius: 0.02, distance: 21, color: 0x998877, speed: 2.4, type: 'asteroid', orbitTilt: 0.03, description: 'Itokawa is a peanut-shaped asteroid visited by Hayabusa.', wiki: 'https://en.wikipedia.org/wiki/25143_Itokawa', diameter: '535 m', mass: '3.5 × 10¹⁰ kg', discoveredBy: 'LINEAR (1998)', facts: ['First asteroid sample return', 'Rubble pile structure', 'Named after Hideo Itokawa', 'Hayabusa returned samples'] }
+            ];
+
+            const cometData = [
+                { name: 'Halley\'s Comet', radius: 0.15, perihelion: 9, aphelion: 70, color: 0xaaddff, speed: 0.8, type: 'comet', orbitTilt: 0.3, tailLength: 8, description: 'Halley\'s Comet is the most famous periodic comet.', wiki: 'https://en.wikipedia.org/wiki/Halley%27s_Comet', orbitalPeriod: '75-79 years', lastPerihelion: '1986', nextPerihelion: '2061', nucleus: '15 × 8 km', discoveredBy: 'Edmond Halley (predicted 1705)', facts: ['Observed since 240 BCE', 'Returns in 2061', 'Nucleus is potato-shaped', 'Source of two meteor showers'] },
+                { name: 'Hale-Bopp', radius: 0.2, perihelion: 12, aphelion: 85, color: 0xccffff, speed: 0.4, type: 'comet', orbitTilt: -0.5, tailLength: 10, description: 'Comet Hale-Bopp was one of the most widely observed comets.', wiki: 'https://en.wikipedia.org/wiki/Comet_Hale%E2%80%93Bopp', orbitalPeriod: '2,533 years', lastPerihelion: '1997', nextPerihelion: '~4530', nucleus: '40-80 km', discoveredBy: 'Alan Hale & Thomas Bopp (1995)', facts: ['Visible for 18 months', 'One of the brightest ever seen', 'Has two distinct tails', 'Next return in ~4530'] },
+                { name: 'Encke', radius: 0.08, perihelion: 8, aphelion: 35, color: 0x88ccff, speed: 1.5, type: 'comet', orbitTilt: 0.2, tailLength: 4, description: 'Comet Encke has the shortest orbital period.', wiki: 'https://en.wikipedia.org/wiki/Comet_Encke', orbitalPeriod: '3.3 years', lastPerihelion: '2023', nextPerihelion: '2027', nucleus: '4.8 km', discoveredBy: 'Pierre Méchain (1786)', facts: ['Shortest orbital period', 'Source of Taurid meteors', 'Losing mass rapidly', 'Observed 63+ times'] },
+                { name: 'Tempel 1', radius: 0.1, perihelion: 15, aphelion: 45, color: 0x99bbff, speed: 1.0, type: 'comet', orbitTilt: -0.18, tailLength: 5, description: 'Comet Tempel 1 was the target of NASA\'s Deep Impact mission.', wiki: 'https://en.wikipedia.org/wiki/9P/Tempel', orbitalPeriod: '5.5 years', lastPerihelion: '2022', nextPerihelion: '2028', nucleus: '7.6 × 4.9 km', discoveredBy: 'Ernst Tempel (1867)', facts: ['Deep Impact target', 'Impactor hit at 10 km/s', 'Stardust-NExT flew by', 'Water ice confirmed'] },
+                { name: 'Churyumov-Gerasimenko', radius: 0.08, perihelion: 14, aphelion: 50, color: 0xaabbdd, speed: 0.9, type: 'comet', orbitTilt: 0.12, tailLength: 4, description: '67P was studied by ESA\'s Rosetta mission.', wiki: 'https://en.wikipedia.org/wiki/67P/Churyumov%E2%80%93Gerasimenko', orbitalPeriod: '6.4 years', lastPerihelion: '2021', nextPerihelion: '2028', nucleus: '4.3 × 4.1 km', discoveredBy: 'Klim Churyumov (1969)', facts: ['Rosetta orbited for 2 years', 'Philae lander touched down', 'Rubber duck shape', 'Organic molecules found'] },
+                { name: 'NEOWISE', radius: 0.12, perihelion: 7, aphelion: 90, color: 0xffffff, speed: 0.5, type: 'comet', orbitTilt: -0.4, tailLength: 7, description: 'Comet NEOWISE was discovered in 2020.', wiki: 'https://en.wikipedia.org/wiki/Comet_NEOWISE', orbitalPeriod: '~6,800 years', lastPerihelion: '2020', nextPerihelion: '~8800', nucleus: '5 km', discoveredBy: 'NEOWISE telescope (2020)', facts: ['Brightest since Hale-Bopp', 'Visible to naked eye', 'Long orbital period', 'Survived close Sun approach'] },
+                { name: 'Wild 2', radius: 0.07, perihelion: 16, aphelion: 42, color: 0x88aacc, speed: 1.1, type: 'comet', orbitTilt: 0.06, tailLength: 3, description: 'Comet Wild 2 was visited by NASA\'s Stardust mission.', wiki: 'https://en.wikipedia.org/wiki/81P/Wild', orbitalPeriod: '6.4 years', lastPerihelion: '2022', nextPerihelion: '2029', nucleus: '5.5 × 4.0 km', discoveredBy: 'Paul Wild (1978)', facts: ['Stardust collected samples', 'Samples returned 2006', 'Amino acids found', 'Jupiter encounter changed orbit'] }
+            ];
+
+            const allBodies = [...planetData, ...dwarfPlanetData];
+
+            // ==================== AR SETUP ====================
+            const container = document.getElementById('ar-canvas');
+            const scene = new THREE.Scene();
+            
+            // AR.js setup
+            const arToolkitContext = new THREEx.ArToolkitContext({
+                cameraParametersUrl: 'https://raw.githubusercontent.com/AR-js-org/AR.js/master/three.js/examples/data/camera_para.dat',
+                detectionMode: 'mono',
+                maxDetectionRate: 30,
+                canvasWidth: 640,
+                canvasHeight: 480,
+                patternRatio: 0.5,
+                labelingMode: 'black_region',
+            });
+
+            const arToolkitSource = new THREEx.ArToolkitSource({
+                sourceType: 'webcam',
+            });
+
+            arToolkitSource.init(function onReady() {
+                arToolkitSource.onResize(container, camera);
+                arToolkitContext.init(function onCompleted() {
+                    camera.projectionMatrix.copy(arToolkitContext.getProjectionMatrix());
+                });
+            });
+
+            const camera = new THREE.Camera();
+            
+            // Marker root for barcode "SOLARSYSTEM"
+            const markerRoot = new THREE.Group();
+            scene.add(markerRoot);
+            
+            const barcodeMarker = new THREEx.ArMarkerControls(arToolkitContext, markerRoot, {
+                type: 'barcode',
+                barcodeValue: 'SOLARSYSTEM',
+                size: 1, // marker size in meters
+            });
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0x404060);
+            scene.add(ambientLight);
+            const sunLight = new THREE.PointLight(0xffeedd, 2, 100);
+            markerRoot.add(sunLight);
+
+            // Scale down the whole solar system to fit on marker
+            const globalScale = 0.12;
+            markerRoot.scale.set(globalScale, globalScale, globalScale);
+
+            // ==================== CREATE SOLAR SYSTEM (attached to markerRoot) ====================
+            const planets = [];
+            const moons = [];
+            const asteroids = [];
+            const comets = [];
+            const orbits = []; // orbit lines
+            const labels = []; // label divs
+
+            // Helper to create orbit line
+            function createOrbitLine(radius, color = 0x444444, tilt = 0) {
+                const geometry = new THREE.BufferGeometry();
+                const points = [];
+                for (let i = 0; i <= 64; i++) {
+                    const angle = (i / 64) * Math.PI * 2;
+                    points.push(Math.cos(angle) * radius, 0, Math.sin(angle) * radius);
+                }
+                geometry.setAttribute('position', new THREE.Float32BufferAttribute(points, 3));
+                const material = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.5 });
+                const line = new THREE.Line(geometry, material);
+                if (tilt) line.rotation.x = tilt;
+                markerRoot.add(line);
+                return line;
+            }
+
+            // Planets
+            allBodies.forEach((data) => {
+                const geometry = new THREE.SphereGeometry(data.radius, 32, 32);
+                const material = data.emissive 
+                    ? new THREE.MeshBasicMaterial({ color: data.color })
+                    : new THREE.MeshStandardMaterial({ color: data.color, roughness: 0.8, metalness: 0.2 });
+                const planet = new THREE.Mesh(geometry, material);
+                planet.castShadow = !data.emissive;
+                planet.receiveShadow = !data.emissive;
+
+                const orbitGroup = new THREE.Group();
+                orbitGroup.add(planet);
+                planet.position.x = data.distance;
+                markerRoot.add(orbitGroup);
+
+                // Rings for Saturn
+                if (data.hasRings) {
+                    const ringGeo = new THREE.RingGeometry(data.radius * 1.4, data.radius * 2.2, 64);
+                    const ringMat = new THREE.MeshStandardMaterial({ color: 0xc9b896, side: THREE.DoubleSide, transparent: true, opacity: 0.7 });
+                    const ring = new THREE.Mesh(ringGeo, ringMat);
+                    ring.rotation.x = Math.PI / 2;
+                    planet.add(ring);
+                }
+
+                // Orbit line
+                if (data.distance > 0) {
+                    const orbitColor = data.type === 'dwarf' ? 0x553333 : 0x444444;
+                    const orbitLine = createOrbitLine(data.distance, orbitColor);
+                    orbits.push(orbitLine);
+                }
+
+                // Moons
+                const planetMoons = [];
+                if (data.moons) {
+                    data.moons.forEach(moonData => {
+                        const moonGeo = new THREE.SphereGeometry(moonData.radius, 16, 16);
+                        const moonMat = new THREE.MeshStandardMaterial({ color: moonData.color });
+                        const moon = new THREE.Mesh(moonGeo, moonMat);
+                        moon.castShadow = true; moon.receiveShadow = true;
+
+                        const moonOrbitGroup = new THREE.Group();
+                        moonOrbitGroup.add(moon);
+                        moon.position.x = moonData.distance;
+                        planet.add(moonOrbitGroup);
+
+                        // Moon orbit line (attached to planet)
+                        const moonOrbitGeo = new THREE.BufferGeometry();
+                        const moonPoints = [];
+                        for (let i = 0; i <= 32; i++) {
+                            const a = (i / 32) * Math.PI * 2;
+                            moonPoints.push(Math.cos(a) * moonData.distance, 0, Math.sin(a) * moonData.distance);
+                        }
+                        moonOrbitGeo.setAttribute('position', new THREE.Float32BufferAttribute(moonPoints, 3));
+                        const moonOrbitLine = new THREE.Line(moonOrbitGeo, new THREE.LineBasicMaterial({ color: 0x333355, transparent: true, opacity: 0.3 }));
+                        planet.add(moonOrbitLine);
+
+                        const labelDiv = document.createElement('div');
+                        labelDiv.className = 'moon-label';
+                        labelDiv.textContent = moonData.name;
+                        labelDiv.style.cssText = `position: absolute; color: #aaaaff; font-size: 10px; pointer-events: none; text-shadow: 0 0 3px black; opacity:0.7;`;
+                        container.appendChild(labelDiv);
+
+                        const moonObj = { mesh: moon, orbitGroup: moonOrbitGroup, data: moonData, angle: Math.random() * Math.PI * 2, label: labelDiv, parentPlanet: planet };
+                        planetMoons.push(moonObj);
+                        moons.push(moonObj);
+                    });
+                }
+
+                planets.push({ mesh: planet, orbitGroup, data, angle: Math.random() * Math.PI * 2, moons: planetMoons });
+
+                // Planet label
+                const labelDiv = document.createElement('div');
+                labelDiv.className = 'planet-label';
+                labelDiv.textContent = data.name;
+                labelDiv.style.cssText = `position: absolute; color: ${data.type === 'dwarf' ? '#ff9999' : 'white'}; font-size: 12px; pointer-events: none; text-shadow: 0 0 5px black; opacity:0.8;`;
+                container.appendChild(labelDiv);
+                labels.push(labelDiv);
+            });
+
+            // Sun glow
+            const sunMesh = planets[0].mesh;
+            const glowGeo = new THREE.SphereGeometry(6.5, 32, 32);
+            const glowMat = new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0.3, side: THREE.BackSide });
+            const glow = new THREE.Mesh(glowGeo, glowMat);
+            sunMesh.add(glow);
+            const outerGlowGeo = new THREE.SphereGeometry(8, 32, 32);
+            const outerGlowMat = new THREE.MeshBasicMaterial({ color: 0xff6600, transparent: true, opacity: 0.15, side: THREE.BackSide });
+            const outerGlow = new THREE.Mesh(outerGlowGeo, outerGlowMat);
+            sunMesh.add(outerGlow);
+
+            // Asteroids (simplified: add main ones with orbit lines)
+            asteroidData.forEach(data => {
+                const geo = new THREE.IcosahedronGeometry(data.radius, 0);
+                const mat = new THREE.MeshStandardMaterial({ color: data.color, roughness: 1.0, metalness: 0.3 });
+                const asteroid = new THREE.Mesh(geo, mat);
+                asteroid.castShadow = true; asteroid.receiveShadow = true;
+                const orbitGroup = new THREE.Group();
+                orbitGroup.rotation.x = data.orbitTilt || 0;
+                orbitGroup.add(asteroid);
+                asteroid.position.x = data.distance;
+                markerRoot.add(orbitGroup);
+
+                // Orbit line
+                const orbitLine = createOrbitLine(data.distance, 0x335533, data.orbitTilt || 0);
+                orbits.push(orbitLine);
+
+                const labelDiv = document.createElement('div');
+                labelDiv.className = 'asteroid-label';
+                labelDiv.textContent = data.name;
+                labelDiv.style.cssText = `position: absolute; color: #99ff99; font-size: 10px; pointer-events: none; text-shadow: 0 0 3px black; opacity:0.7;`;
+                container.appendChild(labelDiv);
+
+                asteroids.push({ mesh: asteroid, orbitGroup, data, angle: Math.random() * Math.PI * 2, label: labelDiv });
+            });
+
+            // Comets (simplified: circular orbits, no tail for brevity)
+            cometData.forEach(data => {
+                const geo = new THREE.SphereGeometry(data.radius, 16, 16);
+                const mat = new THREE.MeshStandardMaterial({ color: data.color });
+                const comet = new THREE.Mesh(geo, mat);
+                comet.castShadow = true; comet.receiveShadow = true;
+                const orbitGroup = new THREE.Group();
+                orbitGroup.rotation.x = data.orbitTilt || 0;
+                orbitGroup.add(comet);
+                const avgDist = (data.perihelion + data.aphelion) / 2;
+                comet.position.x = avgDist;
+                markerRoot.add(orbitGroup);
+
+                const orbitLine = createOrbitLine(avgDist, 0x4466aa, data.orbitTilt || 0);
+                orbits.push(orbitLine);
+
+                const labelDiv = document.createElement('div');
+                labelDiv.className = 'comet-label';
+                labelDiv.textContent = data.name;
+                labelDiv.style.cssText = `position: absolute; color: #aaddff; font-size: 10px; pointer-events: none; text-shadow: 0 0 5px #0066ff; opacity:0.9;`;
+                container.appendChild(labelDiv);
+
+                comets.push({ mesh: comet, orbitGroup, data, angle: Math.random() * Math.PI * 2, label: labelDiv });
+            });
+
+            // ==================== SIDEBAR POPULATION ====================
+            const planetList = document.getElementById('planet-list');
+            function addSectionHeader(title) {
+                const li = document.createElement('li');
+                li.innerHTML = `<div style="color: #666; font-size: 11px; padding: 8px 0; text-transform: uppercase; letter-spacing: 1px;">${title}</div>`;
+                planetList.appendChild(li);
+            }
+
+            addSectionHeader('Planets');
+            allBodies.filter(d => d.type !== 'dwarf').forEach((data) => {
+                const li = document.createElement('li');
+                li.className = 'planet-item';
+                li.innerHTML = `<div class="planet-color" style="background-color: #${data.color.toString(16).padStart(6,'0')};"></div><div class="planet-info"><div class="planet-name">${data.name}</div><div class="planet-distance">${data.distance} AU</div></div>`;
+                li.addEventListener('click', () => {
+                    populateInfoPanel(data);
+                    document.querySelectorAll('.planet-item').forEach(el => el.classList.remove('active'));
+                    li.classList.add('active');
+                });
+                planetList.appendChild(li);
+                if (data.moons) {
+                    data.moons.forEach(moon => {
+                        const moonLi = document.createElement('li');
+                        moonLi.className = 'planet-item';
+                        moonLi.style.paddingLeft = '35px';
+                        moonLi.innerHTML = `<div class="planet-color" style="width:12px;height:12px; background-color: #${moon.color.toString(16).padStart(6,'0')};"></div><div class="planet-info"><div class="planet-name" style="font-size:12px;color:#aaa;">↳ ${moon.name}</div></div>`;
+                        moonLi.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            populateInfoPanel(moon);
+                        });
+                        planetList.appendChild(moonLi);
+                    });
+                }
+            });
+
+            addSectionHeader('Dwarf Planets');
+            allBodies.filter(d => d.type === 'dwarf').forEach((data) => {
+                const li = document.createElement('li');
+                li.className = 'planet-item';
+                li.innerHTML = `<div class="planet-color" style="background-color: #${data.color.toString(16).padStart(6,'0')};"></div><div class="planet-info"><div class="planet-name" style="color:#ffaaaa;">${data.name}</div><div class="planet-distance">${data.distance} AU</div></div>`;
+                li.addEventListener('click', () => {
+                    populateInfoPanel(data);
+                    document.querySelectorAll('.planet-item').forEach(el => el.classList.remove('active'));
+                    li.classList.add('active');
+                });
+                planetList.appendChild(li);
+                if (data.moons) {
+                    data.moons.forEach(moon => {
+                        const moonLi = document.createElement('li');
+                        moonLi.className = 'planet-item';
+                        moonLi.style.paddingLeft = '35px';
+                        moonLi.innerHTML = `<div class="planet-color" style="width:12px;height:12px; background-color: #${moon.color.toString(16).padStart(6,'0')};"></div><div class="planet-info"><div class="planet-name" style="font-size:12px;color:#aa8888;">↳ ${moon.name}</div></div>`;
+                        moonLi.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            populateInfoPanel(moon);
+                        });
+                        planetList.appendChild(moonLi);
+                    });
+                }
+            });
+
+            addSectionHeader('Asteroids');
+            asteroidData.forEach(data => {
+                const li = document.createElement('li');
+                li.className = 'planet-item';
+                li.innerHTML = `<div class="planet-color" style="width:14px;height:14px; background-color: #${data.color.toString(16).padStart(6,'0')}; border-radius:3px;"></div><div class="planet-info"><div class="planet-name" style="color:#99ff99;">${data.name}</div><div class="planet-distance">${data.distance} AU</div></div>`;
+                li.addEventListener('click', () => populateInfoPanel(data));
+                planetList.appendChild(li);
+            });
+
+            addSectionHeader('Comets');
+            cometData.forEach(data => {
+                const li = document.createElement('li');
+                li.className = 'planet-item';
+                li.innerHTML = `<div class="planet-color" style="width:14px;height:14px; background: linear-gradient(135deg, #${data.color.toString(16).padStart(6,'0')}, transparent); border-radius:50%;"></div><div class="planet-info"><div class="planet-name" style="color:#aaddff;">${data.name}</div><div class="planet-distance">${data.perihelion}-${data.aphelion} AU</div></div>`;
+                li.addEventListener('click', () => populateInfoPanel(data));
+                planetList.appendChild(li);
+            });
+
+            // Info panel population
+            function populateInfoPanel(data) {
+                const panel = document.getElementById('info-panel');
+                document.getElementById('info-name').textContent = data.name;
+                const typeMap = { star:'⭐ Star', planet:'🪐 Planet', dwarf:'🔵 Dwarf Planet', asteroid:'☄️ Asteroid', comet:'💫 Comet', moon:'🌙 Moon' };
+                document.getElementById('info-type').textContent = typeMap[data.type] || data.type;
+                document.getElementById('info-description').textContent = data.description || '';
+                let statsHtml = '';
+                if (data.mass) statsHtml += `<div class="stat-item"><div class="stat-label">Mass</div><div class="stat-value">${data.mass}</div></div>`;
+                if (data.diameter) statsHtml += `<div class="stat-item"><div class="stat-label">Diameter</div><div class="stat-value">${data.diameter}</div></div>`;
+                if (data.dayLength) statsHtml += `<div class="stat-item"><div class="stat-label">Day Length</div><div class="stat-value">${data.dayLength}</div></div>`;
+                if (data.yearLength) statsHtml += `<div class="stat-item"><div class="stat-label">Year Length</div><div class="stat-value">${data.yearLength}</div></div>`;
+                if (data.surfaceTemp) statsHtml += `<div class="stat-item"><div class="stat-label">Surface Temp</div><div class="stat-value">${data.surfaceTemp}</div></div>`;
+                if (data.orbitalPeriod) statsHtml += `<div class="stat-item"><div class="stat-label">Orbital Period</div><div class="stat-value">${data.orbitalPeriod}</div></div>`;
+                if (data.discoveredBy) statsHtml += `<div class="stat-item" style="grid-column: span 2;"><div class="stat-label">Discovered By</div><div class="stat-value">${data.discoveredBy}</div></div>`;
+                document.getElementById('info-stats').innerHTML = statsHtml;
+
+                if (data.facts && data.facts.length) {
+                    let factsHtml = '<h4>Quick Facts</h4><ul>';
+                    data.facts.forEach(f => factsHtml += `<li>${f}</li>`);
+                    factsHtml += '</ul>';
+                    document.getElementById('info-facts').innerHTML = factsHtml;
+                } else {
+                    document.getElementById('info-facts').innerHTML = '';
+                }
+
+                const wikiLink = document.getElementById('wiki-link');
+                if (data.wiki) {
+                    wikiLink.href = data.wiki;
+                    wikiLink.style.display = 'inline-flex';
+                } else {
+                    wikiLink.style.display = 'none';
+                }
+                panel.classList.add('visible');
+            }
+
+            // ==================== ANIMATION & CONTROLS ====================
+            let speedMultiplier = 1;
+            let showOrbits = true;
+            let showLabels = true;
+            let showAsteroids = true;
+            let showComets = true;
+
+            document.getElementById('speed-control').addEventListener('input', (e) => speedMultiplier = parseFloat(e.target.value));
+            document.getElementById('orbit-toggle').addEventListener('change', (e) => {
+                showOrbits = e.target.checked;
+                orbits.forEach(o => o.visible = showOrbits);
+            });
+            document.getElementById('labels-toggle').addEventListener('change', (e) => {
+                showLabels = e.target.checked;
+                labels.forEach(l => l.style.display = showLabels ? 'block' : 'none');
+                moons.forEach(m => m.label.style.display = showLabels ? 'block' : 'none');
+                asteroids.forEach(a => a.label.style.display = (showLabels && showAsteroids) ? 'block' : 'none');
+                comets.forEach(c => c.label.style.display = (showLabels && showComets) ? 'block' : 'none');
+            });
+            document.getElementById('asteroids-toggle').addEventListener('change', (e) => {
+                showAsteroids = e.target.checked;
+                asteroids.forEach(a => {
+                    a.orbitGroup.visible = showAsteroids;
+                    a.label.style.display = (showLabels && showAsteroids) ? 'block' : 'none';
+                });
+            });
+            document.getElementById('comets-toggle').addEventListener('change', (e) => {
+                showComets = e.target.checked;
+                comets.forEach(c => {
+                    c.orbitGroup.visible = showComets;
+                    c.label.style.display = (showLabels && showComets) ? 'block' : 'none';
+                });
+            });
+
+            // Renderer
+            const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.shadowMap.enabled = true;
+            container.appendChild(renderer.domElement);
+
+            window.addEventListener('resize', () => {
+                arToolkitSource.onResize(container, camera);
+                renderer.setSize(container.clientWidth, container.clientHeight);
+            });
+
+            function animate() {
+                requestAnimationFrame(animate);
+
+                if (arToolkitSource.ready) {
+                    arToolkitContext.update(arToolkitSource.domElement);
+                }
+
+                // Update planet rotations
+                planets.forEach(p => {
+                    if (p.data.speed > 0) {
+                        p.angle += p.data.speed * 0.001 * speedMultiplier;
+                        p.orbitGroup.rotation.y = p.angle;
+                    }
+                    p.mesh.rotation.y += 0.01 * speedMultiplier;
+                });
+                moons.forEach(m => {
+                    m.angle += m.data.speed * 0.002 * speedMultiplier;
+                    m.orbitGroup.rotation.y = m.angle;
+                });
+                asteroids.forEach(a => {
+                    a.angle += a.data.speed * 0.001 * speedMultiplier;
+                    a.orbitGroup.rotation.y = a.angle;
+                    a.mesh.rotation.x += 0.02;
+                    a.mesh.rotation.z += 0.015;
+                });
+                comets.forEach(c => {
+                    c.angle += c.data.speed * 0.001 * speedMultiplier;
+                    c.orbitGroup.rotation.y = c.angle;
+                });
+
+                // Update labels (project to screen)
+                if (showLabels) {
+                    const allLabelObjects = [
+                        ...planets.map((p, idx) => ({ obj: p.mesh, label: labels[idx], offset: p.data.radius + 0.5 })),
+                        ...moons.map(m => ({ obj: m.mesh, label: m.label, offset: m.data.radius + 0.2 })),
+                        ...asteroids.map(a => ({ obj: a.mesh, label: a.label, offset: a.data.radius + 0.3 })),
+                        ...comets.map(c => ({ obj: c.mesh, label: c.label, offset: c.data.radius + 0.5 }))
+                    ];
+                    allLabelObjects.forEach(item => {
+                        const pos = item.obj.getWorldPosition(new THREE.Vector3());
+                        const screenPos = pos.project(camera);
+                        if (screenPos.z < 1 && markerRoot.visible) {
+                            const x = (screenPos.x * 0.5 + 0.5) * container.clientWidth;
+                            const y = (-screenPos.y * 0.5 + 0.5) * container.clientHeight;
+                            item.label.style.left = x + 'px';
+                            item.label.style.top = y + 'px';
+                            item.label.style.display = 'block';
+                        } else {
+                            item.label.style.display = 'none';
+                        }
+                    });
+                }
+
+                renderer.render(scene, camera);
+            }
+
+            animate();
+        })();
+    </script>
+</body>
+</html>
