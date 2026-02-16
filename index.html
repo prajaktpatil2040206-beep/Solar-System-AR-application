@@ -1,28 +1,190 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <meta charset="utf-8">
-    <title>AR Test</title>
+<meta charset="UTF-8">
+<title>AR Solar System</title>
 
-    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/ar.js@3.3.2/aframe/build/aframe-ar.js"></script>
+<style>
+    body {
+        margin: 0;
+        overflow: hidden;
+        background: black;
+        font-family: Arial, sans-serif;
+    }
 
-    <style>
-        body { margin: 0; overflow: hidden; }
-    </style>
+    video {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        z-index: -1;
+    }
+
+    canvas {
+        position: fixed;
+        top: 0;
+        left: 0;
+    }
+
+    .info {
+        position: fixed;
+        bottom: 10px;
+        left: 10px;
+        color: white;
+        background: rgba(0,0,0,0.5);
+        padding: 10px;
+        border-radius: 10px;
+        font-size: 14px;
+    }
+</style>
 </head>
 
 <body>
 
-<a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
+<video id="camera" autoplay playsinline></video>
 
-    <a-marker preset="hiro">
-        <a-box position="0 0.5 0" color="red"></a-box>
-    </a-marker>
+<div class="info">
+    Move device 📱 → Rotate View  
+    Pinch 🤏 → Zoom  
+    Drag 🖐 → Move  
+</div>
 
-    <a-entity camera></a-entity>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160/examples/js/controls/OrbitControls.js"></script>
 
-</a-scene>
+<script>
+/* CAMERA BACKGROUND */
+
+const video = document.getElementById("camera");
+
+navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+.then(stream => {
+    video.srcObject = stream;
+})
+.catch(err => {
+    alert("Camera access required");
+});
+
+/* THREE.JS SETUP */
+
+const scene = new THREE.Scene();
+
+const camera = new THREE.PerspectiveCamera(
+    70,
+    window.innerWidth / window.innerHeight,
+    0.1,
+    1000
+);
+
+camera.position.z = 20;
+
+const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+/* CONTROLS (Zoom + Drag) */
+
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.enablePan = true;
+controls.enableZoom = true;
+
+/* LIGHTING */
+
+const light = new THREE.PointLight(0xffffff, 2);
+light.position.set(0, 0, 0);
+scene.add(light);
+
+/* SOLAR SYSTEM */
+
+const sunGeometry = new THREE.SphereGeometry(2, 32, 32);
+const sunMaterial = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
+const sun = new THREE.Mesh(sunGeometry, sunMaterial);
+scene.add(sun);
+
+const planets = [];
+
+function createPlanet(size, color, distance, speed) {
+    const geometry = new THREE.SphereGeometry(size, 32, 32);
+    const material = new THREE.MeshStandardMaterial({ color });
+    const mesh = new THREE.Mesh(geometry, material);
+
+    const orbit = new THREE.Object3D();
+    orbit.add(mesh);
+    mesh.position.x = distance;
+
+    scene.add(orbit);
+
+    planets.push({ mesh, orbit, speed });
+}
+
+/* Planets */
+
+createPlanet(0.4, 0x888888, 4, 0.02);   // Mercury
+createPlanet(0.6, 0xffcc88, 6, 0.015);  // Venus
+createPlanet(0.7, 0x3399ff, 8, 0.01);   // Earth
+createPlanet(0.5, 0xff5533, 10, 0.008); // Mars
+createPlanet(1.2, 0xffaa88, 13, 0.004); // Jupiter
+createPlanet(1.0, 0xddccaa, 16, 0.003); // Saturn
+
+/* ORBITS */
+
+function createOrbit(radius) {
+    const geometry = new THREE.RingGeometry(radius - 0.02, radius + 0.02, 64);
+    const material = new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        side: THREE.DoubleSide
+    });
+
+    const ring = new THREE.Mesh(geometry, material);
+    ring.rotation.x = Math.PI / 2;
+    scene.add(ring);
+}
+
+[4,6,8,10,13,16].forEach(r => createOrbit(r));
+
+/* DEVICE ORIENTATION (Gyroscope) */
+
+let targetRotation = { x: 0, y: 0 };
+
+window.addEventListener("deviceorientation", event => {
+    if (event.beta && event.gamma) {
+
+        targetRotation.x = THREE.MathUtils.degToRad(event.beta - 90);
+        targetRotation.y = THREE.MathUtils.degToRad(event.gamma);
+    }
+});
+
+/* ANIMATION */
+
+function animate() {
+    requestAnimationFrame(animate);
+
+    planets.forEach(p => {
+        p.orbit.rotation.y += p.speed;
+    });
+
+    /* Smooth camera rotation */
+
+    camera.rotation.x += (targetRotation.x - camera.rotation.x) * 0.05;
+    camera.rotation.y += (targetRotation.y - camera.rotation.y) * 0.05;
+
+    controls.update();
+    renderer.render(scene, camera);
+}
+
+animate();
+
+/* RESIZE */
+
+window.addEventListener("resize", () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
 
 </body>
 </html>
