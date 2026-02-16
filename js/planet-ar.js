@@ -14,7 +14,7 @@ const planetData = {
   neptune: { name:'Neptune', size:1.1, texture:'neptune.jpg', info:'Neptune is deep blue and has the strongest winds in the solar system.' }
 }[planetName];
 
-// --- Setup camera video element manually ---
+// --- Setup camera video element manually (back camera first) ---
 const video = document.createElement('video');
 video.setAttribute('playsinline', '');
 video.setAttribute('autoplay', '');
@@ -27,11 +27,10 @@ video.style.height = '100%';
 video.style.objectFit = 'cover';
 video.style.zIndex = '-1'; // Behind the canvas
 document.body.appendChild(video);
-// Request camera access with back camera preference
+
+// Request back camera, fallback to any
 navigator.mediaDevices.getUserMedia({ 
-  video: { 
-    facingMode: { exact: "environment" } // Try back camera first
-  } 
+  video: { facingMode: { exact: "environment" } } 
 })
 .then(stream => {
   video.srcObject = stream;
@@ -39,7 +38,6 @@ navigator.mediaDevices.getUserMedia({
 })
 .catch(err => {
   console.warn('Back camera not available, trying any camera:', err);
-  // Fallback to any camera (usually front)
   return navigator.mediaDevices.getUserMedia({ video: true })
     .then(stream => {
       video.srcObject = stream;
@@ -48,7 +46,6 @@ navigator.mediaDevices.getUserMedia({
 })
 .catch(err => {
   console.error('Camera access denied or no camera:', err);
-  // Show user a message
   video.style.backgroundColor = '#111';
   const msg = document.createElement('div');
   msg.innerText = 'Camera access required for AR. Please allow camera and ensure you have a back camera.';
@@ -63,6 +60,7 @@ navigator.mediaDevices.getUserMedia({
   msg.style.zIndex = '0';
   document.body.appendChild(msg);
 });
+
 // --- Setup Three.js renderer (transparent) ---
 const canvas = document.getElementById('ar-canvas');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });

@@ -1,15 +1,32 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-// Live camera background
+// Live camera background – try back camera first
 const video = document.createElement('video');
 video.autoplay = true;
 video.muted = true;
 video.playsInline = true;
 
-navigator.mediaDevices.getUserMedia({ video: true })
-  .then(stream => { video.srcObject = stream; video.play(); })
-  .catch(() => console.warn('Camera not available'));
+// Request back camera, fallback to any
+navigator.mediaDevices.getUserMedia({ 
+  video: { facingMode: { exact: "environment" } } 
+})
+.then(stream => {
+  video.srcObject = stream;
+  video.play();
+})
+.catch(err => {
+  console.warn('Back camera not available, using any camera:', err);
+  return navigator.mediaDevices.getUserMedia({ video: true })
+    .then(stream => {
+      video.srcObject = stream;
+      video.play();
+    });
+})
+.catch(err => {
+  console.error('Camera access denied or no camera:', err);
+  // Fallback: set a dark background
+});
 
 const videoTexture = new THREE.VideoTexture(video);
 
