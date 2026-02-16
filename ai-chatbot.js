@@ -1,10 +1,10 @@
-// ai-chatbot.js – AI Chatbot for Space Exploration (Gemini API)
+// ai-chatbot.js – Space AI Assistant (Gemini 2.0 Flash, header auth)
 
 (function() {
     const API_KEY = 'AIzaSyA2pNbhgkjz4qzKKnuzxCUx6wq2ugRqEms';
-    const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
+    const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
-    // Inject styles
+    // Inject styles (same as before)
     const style = document.createElement('style');
     style.innerHTML = `
         .ai-chatbot-button {
@@ -142,6 +142,11 @@
         .bot-message + .speaker-btn {
             margin-left: 5px;
         }
+        .error-message {
+            color: #ff8888;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
     `;
     document.head.appendChild(style);
 
@@ -246,17 +251,33 @@
         sendMessage(input.value);
     });
 
+    // Fallback local responses for testing (if API fails)
+    const localResponses = {
+        'mercury': 'Mercury is the closest planet to the Sun. It has a very thin atmosphere and extreme temperature variations.',
+        'venus': 'Venus is the hottest planet in our solar system with a thick atmosphere of carbon dioxide.',
+        'earth': 'Earth is the only planet known to support life. It has one moon and a breathable atmosphere.',
+        'mars': 'Mars is the red planet, known for its iron oxide surface. It has two small moons: Phobos and Deimos.',
+        'jupiter': 'Jupiter is the largest planet, with 79 known moons. It has a Great Red Spot, a giant storm.',
+        'saturn': 'Saturn is famous for its beautiful rings. It has 82 moons, including Titan.',
+        'uranus': 'Uranus rotates on its side and has 27 moons. It is an ice giant.',
+        'neptune': 'Neptune is the windiest planet, with 14 moons. It appears deep blue.',
+        'sun': 'The Sun is a G-type main-sequence star that accounts for 99.86% of the solar system\'s mass.',
+        'moon': 'The Moon is Earth\'s only natural satellite. It affects tides and has a thin exosphere.'
+    };
+
     async function sendMessage(text) {
         if (!text.trim()) return;
         addMessage('user', text);
         input.value = '';
-        addMessage('bot', 'Thinking...', true); // temporary thinking message
+        addMessage('bot', 'Thinking...', true); // temporary
 
         try {
-            const response = await fetch(`${API_URL}?key=${API_KEY}`, {
+            console.log('Sending request to Gemini API (header auth)...');
+            const response = await fetch(API_URL, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'X-goog-api-key': API_KEY
                 },
                 body: JSON.stringify({
                     contents: [{
@@ -267,20 +288,33 @@
                 })
             });
 
+            console.log('Response status:', response.status);
+            const responseText = await response.text();
+            console.log('Response body:', responseText);
+
             if (!response.ok) {
-                throw new Error(`API error: ${response.status}`);
+                throw new Error(`API error ${response.status}: ${responseText}`);
             }
 
-            const data = await response.json();
+            const data = JSON.parse(responseText);
             const reply = data.candidates[0].content.parts[0].text;
 
-            // Remove the "Thinking..." message and add real reply
             removeLastBotMessage();
             addMessage('bot', reply, false, true);
         } catch (error) {
             console.error('Gemini API error:', error);
             removeLastBotMessage();
-            addMessage('bot', 'Sorry, I encountered an error. Please try again later.');
+
+            // Fallback: try to find a keyword in the question and give a local response
+            const lowerText = text.toLowerCase();
+            let fallbackReply = 'Sorry, I encountered an error. Please check the console for details.';
+            for (const [key, value] of Object.entries(localResponses)) {
+                if (lowerText.includes(key)) {
+                    fallbackReply = value + ' (local response - API unavailable)';
+                    break;
+                }
+            }
+            addMessage('bot', fallbackReply, false, true);
         }
     }
 
@@ -319,7 +353,7 @@
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.rate = 0.9;
             utterance.pitch = 1;
-            window.speechSynthesis.cancel(); // stop any current speech
+            window.speechSynthesis.cancel();
             window.speechSynthesis.speak(utterance);
         } else {
             alert('Text-to-speech not supported in your browser.');
