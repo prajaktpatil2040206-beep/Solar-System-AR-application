@@ -2,57 +2,121 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Hiro Marker Detection</title>
-
-    <!-- A-Frame -->
-    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-
-    <!-- AR.js -->
-    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
+    <title>Markerless AR Sphere</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <style>
         body { margin: 0; overflow: hidden; }
-        #message {
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0,0,0,0.7);
-            color: white;
-            padding: 12px 20px;
-            border-radius: 10px;
-            font-family: Arial;
-            font-size: 18px;
-        }
     </style>
 </head>
 
 <body>
 
-<div id="message">Show Hiro Marker</div>
+<script type="module">
 
-<a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.module.js';
+import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/webxr/ARButton.js';
 
-    <!-- Hiro Marker -->
-    <a-marker preset="hiro" id="hiroMarker">
-    </a-marker>
+let camera, scene, renderer;
+let controller;
+let sphere;
 
-    <!-- Camera -->
-    <a-entity camera></a-entity>
+scene = new THREE.Scene();
 
-</a-scene>
+camera = new THREE.PerspectiveCamera();
 
-<script>
-    const marker = document.querySelector("#hiroMarker");
-    const message = document.querySelector("#message");
+renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.xr.enabled = true;
 
-    marker.addEventListener("markerFound", () => {
-        message.innerHTML = "✅ Hiro Marker Detected!";
-    });
+document.body.appendChild(renderer.domElement);
 
-    marker.addEventListener("markerLost", () => {
-        message.innerHTML = "❌ Marker Lost — Show Hiro Marker";
-    });
+// AR Button
+document.body.appendChild(ARButton.createButton(renderer, {
+    requiredFeatures: ['hit-test']
+}));
+
+// Light
+const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
+scene.add(light);
+
+// Sphere Geometry
+const geometry = new THREE.SphereGeometry(0.1, 32, 32);
+const material = new THREE.MeshStandardMaterial({ color: 0x00aaff });
+
+sphere = new THREE.Mesh(geometry, material);
+sphere.visible = false;
+scene.add(sphere);
+
+// Controller (Tap Detection)
+controller = renderer.xr.getController(0);
+controller.addEventListener('select', onSelect);
+scene.add(controller);
+
+function onSelect() {
+
+    if (reticle.visible) {
+        sphere.position.setFromMatrixPosition(reticle.matrix);
+        sphere.visible = true;
+    }
+}
+
+// Reticle (Surface Indicator)
+const reticleGeometry = new THREE.RingGeometry(0.08, 0.1, 32);
+const reticleMaterial = new THREE.MeshBasicMaterial();
+
+const reticle = new THREE.Mesh(reticleGeometry, reticleMaterial);
+reticle.rotation.x = -Math.PI / 2;
+reticle.visible = false;
+scene.add(reticle);
+
+let hitTestSource = null;
+let hitTestSourceRequested = false;
+
+renderer.setAnimationLoop(render);
+
+function render(timestamp, frame) {
+
+    if (frame) {
+
+        const referenceSpace = renderer.xr.getReferenceSpace();
+        const session = renderer.xr.getSession();
+
+        if (!hitTestSourceRequested) {
+
+            session.requestReferenceSpace('viewer').then((viewerSpace) => {
+                session.requestHitTestSource({ space: viewerSpace }).then((source) => {
+                    hitTestSource = source;
+                });
+            });
+
+            hitTestSourceRequested = true;
+
+            session.addEventListener('end', () => {
+                hitTestSourceRequested = false;
+                hitTestSource = null;
+            });
+        }
+
+        if (hitTestSource) {
+
+            const hitTestResults = frame.getHitTestResults(hitTestSource);
+
+            if (hitTestResults.length) {
+
+                const hit = hitTestResults[0];
+                reticle.visible = true;
+                reticle.matrix.fromArray(hit.getPose(referenceSpace).transform.matrix);
+
+            } else {
+                reticle.visible = false;
+            }
+        }
+    }
+
+    renderer.render(scene, camera);
+}
+
 </script>
 
 </body>
