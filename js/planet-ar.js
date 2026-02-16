@@ -27,31 +27,42 @@ video.style.height = '100%';
 video.style.objectFit = 'cover';
 video.style.zIndex = '-1'; // Behind the canvas
 document.body.appendChild(video);
-
-// Request camera access
-navigator.mediaDevices.getUserMedia({ video: true })
-  .then(stream => {
-    video.srcObject = stream;
-    video.play().catch(e => console.warn('Auto-play failed:', e));
-  })
-  .catch(err => {
-    console.error('Camera access denied:', err);
-    // Fallback: show a message or a color
-    video.style.backgroundColor = '#111';
-    const msg = document.createElement('div');
-    msg.innerText = 'Camera access required for AR. Please allow camera.';
-    msg.style.position = 'fixed';
-    msg.style.top = '50%';
-    msg.style.left = '50%';
-    msg.style.transform = 'translate(-50%, -50%)';
-    msg.style.color = 'white';
-    msg.style.background = 'rgba(0,0,0,0.7)';
-    msg.style.padding = '1rem';
-    msg.style.borderRadius = '8px';
-    msg.style.zIndex = '0';
-    document.body.appendChild(msg);
-  });
-
+// Request camera access with back camera preference
+navigator.mediaDevices.getUserMedia({ 
+  video: { 
+    facingMode: { exact: "environment" } // Try back camera first
+  } 
+})
+.then(stream => {
+  video.srcObject = stream;
+  return video.play();
+})
+.catch(err => {
+  console.warn('Back camera not available, trying any camera:', err);
+  // Fallback to any camera (usually front)
+  return navigator.mediaDevices.getUserMedia({ video: true })
+    .then(stream => {
+      video.srcObject = stream;
+      return video.play();
+    });
+})
+.catch(err => {
+  console.error('Camera access denied or no camera:', err);
+  // Show user a message
+  video.style.backgroundColor = '#111';
+  const msg = document.createElement('div');
+  msg.innerText = 'Camera access required for AR. Please allow camera and ensure you have a back camera.';
+  msg.style.position = 'fixed';
+  msg.style.top = '50%';
+  msg.style.left = '50%';
+  msg.style.transform = 'translate(-50%, -50%)';
+  msg.style.color = 'white';
+  msg.style.background = 'rgba(0,0,0,0.7)';
+  msg.style.padding = '1rem';
+  msg.style.borderRadius = '8px';
+  msg.style.zIndex = '0';
+  document.body.appendChild(msg);
+});
 // --- Setup Three.js renderer (transparent) ---
 const canvas = document.getElementById('ar-canvas');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
