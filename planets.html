@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Choose a Planet</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: radial-gradient(ellipse at bottom, #1B2735 0%, #0a0f1e 100%);
+            color: white;
+            font-family: 'Arial', sans-serif;
+            min-height: 100vh;
+        }
+        .back-btn {
+            display: inline-block;
+            background: rgba(0,0,0,0.6);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 30px;
+            text-decoration: none;
+            margin-bottom: 20px;
+            border: 1px solid #3a6ea5;
+            backdrop-filter: blur(5px);
+        }
+        h1 {
+            text-align: center;
+            font-size: 2.5rem;
+            text-shadow: 0 0 20px cyan;
+        }
+        .planet-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 25px;
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+        .card {
+            background: rgba(20, 30, 50, 0.7);
+            backdrop-filter: blur(10px);
+            border: 2px solid #3a6ea5;
+            border-radius: 20px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+            box-shadow: 0 0 15px rgba(0,160,255,0.3);
+        }
+        .card:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px cyan;
+        }
+        .card img {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid #8ab3ff;
+            background: black;
+        }
+        .card h2 {
+            margin: 15px 0 5px;
+            font-size: 1.8rem;
+        }
+        .card p {
+            margin: 5px 0;
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <a href="index.html" class="back-btn">← Home</a>
+    <h1>🪐 Select a Planet to Explore</h1>
+    <div class="planet-grid" id="planet-grid"></div>
+
+    <script>
+        const planets = [
+            { name: 'Mercury', diameter: '4,879 km', distance: '57.9 million km', texture: 'mercury.jpg' },
+            { name: 'Venus', diameter: '12,104 km', distance: '108.2 million km', texture: 'venus.jpg' },
+            { name: 'Earth', diameter: '12,742 km', distance: '149.6 million km', texture: 'earth.jpg' },
+            { name: 'Mars', diameter: '6,779 km', distance: '227.9 million km', texture: 'mars.jpg' },
+            { name: 'Jupiter', diameter: '139,820 km', distance: '778.5 million km', texture: 'jupiter.jpg' },
+            { name: 'Saturn', diameter: '116,460 km', distance: '1.43 billion km', texture: 'saturn.jpg', hasRing: true },
+            { name: 'Uranus', diameter: '50,724 km', distance: '2.87 billion km', texture: 'uranus.jpg', hasRing: true },
+            { name: 'Neptune', diameter: '49,244 km', distance: '4.5 billion km', texture: 'neptune.jpg' }
+        ];
+
+        const grid = document.getElementById('planet-grid');
+        planets.forEach(p => {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.onclick = () => location.href = `planet.html?name=${p.name.toLowerCase()}`;
+            card.innerHTML = `
+                <img src="images/${p.texture}" alt="${p.name}" onerror="this.src='https://via.placeholder.com/120?text=${p.name}'">
+                <h2>${p.name}</h2>
+                <p>Diameter: ${p.diameter}</p>
+                <p>Distance: ${p.distance}</p>
+            `;
+            grid.appendChild(card);
+        });
+    </script>
+</body>
+</html>

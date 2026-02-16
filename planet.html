@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>AR Planet Explorer</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <!-- A-Frame and AR.js -->
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Arial', sans-serif; }
+        a-scene canvas { touch-action: none; }
+        #info-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: rgba(10, 20, 30, 0.85);
+            backdrop-filter: blur(10px);
+            color: white;
+            padding: 20px;
+            border-radius: 30px;
+            border: 2px solid #3a6ea5;
+            box-shadow: 0 0 30px rgba(0,160,255,0.5);
+            z-index: 1000;
+            max-width: 500px;
+            margin: 0 auto;
+            pointer-events: auto;
+        }
+        #info-panel h2 {
+            margin: 0 0 10px;
+            font-size: 2rem;
+            text-shadow: 0 0 10px cyan;
+        }
+        #info-panel p {
+            margin: 8px 0;
+            font-size: 1.1rem;
+        }
+        .read-btn {
+            background: #2a4a7a;
+            border: none;
+            color: white;
+            padding: 12px 25px;
+            font-size: 1.2rem;
+            border-radius: 40px;
+            cursor: pointer;
+            margin-top: 15px;
+            border: 1px solid #8ab3ff;
+            transition: 0.3s;
+            width: 100%;
+        }
+        .read-btn:hover {
+            background: #3a6ea5;
+            box-shadow: 0 0 15px cyan;
+        }
+        .back-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.6);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 30px;
+            text-decoration: none;
+            z-index: 1001;
+            border: 1px solid #3a6ea5;
+            backdrop-filter: blur(5px);
+        }
+        .debug-hint {
+            position: absolute;
+            top: 80px;
+            left: 20px;
+            background: rgba(0,0,0,0.5);
+            color: #0f0;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <a href="planets.html" class="back-btn">← Planets</a>
+    <div class="debug-hint" id="debug-status">Waiting for marker...</div>
+
+    <!-- Gesture handler (same as before) -->
+    <script>
+        AFRAME.registerComponent('gesture-control', {
+            init: function () {
+                const targetEl = document.getElementById('planet-obj');
+                if (!targetEl) return;
+
+                const THREE = AFRAME.THREE;
+                let scale = 1;
+                let startDistance = 0;
+                let lastTouchCenter = { x: 0, y: 0 };
+                let isPinching = false;
+
+                targetEl.object3D.position.set(0, 0, 0);
+
+                const canvas = this.el.canvas;
+                canvas.addEventListener('touchstart', onTouchStart, { passive: false });
+                canvas.addEventListener('touchmove', onTouchMove, { passive: false });
+                canvas.addEventListener('touchend', onTouchEnd);
+                canvas.addEventListener('touchcancel', onTouchEnd);
+
+                function onTouchStart(e) {
+                    if (e.touches.length === 2) {
+                        e.preventDefault();
+                        isPinching = true;
+                        const t1 = e.touches[0];
+                        const t2 = e.touches[1];
+                        const dx = t1.clientX - t2.clientX;
+                        const dy = t1.clientY - t2.clientY;
+                        startDistance = Math.sqrt(dx * dx + dy * dy);
+                        lastTouchCenter = {
+                            x: (t1.clientX + t2.clientX) / 2,
+                            y: (t1.clientY + t2.clientY) / 2,
+                            angle: Math.atan2(dy, dx)
+                        };
+                        this.startScale = scale;
+                        this.startPos = targetEl.object3D.position.clone();
+                    }
+                }
+
+                function onTouchMove(e) {
+                    if (!isPinching || e.touches.length !== 2) return;
+                    e.preventDefault();
+
+                    const t1 = e.touches[0];
+                    const t2 = e.touches[1];
+                    const dx = t1.clientX - t2.clientX;
+                    const dy = t1.clientY - t2.clientY;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+
+                    const scaleFactor = distance / startDistance;
+                    scale = this.startScale * scaleFactor;
+                    scale = Math.max(0.2, Math.min(20, scale));
+                    targetEl.object3D.scale.set(scale, scale, scale);
+
+                    const centerX = (t1.clientX + t2.clientX) / 2;
+                    const centerY = (t1.clientY + t2.clientY) / 2;
+                    if (lastTouchCenter) {
+                        const deltaX = centerX - lastTouchCenter.x;
+                        const deltaY = centerY - lastTouchCenter.y;
+                        const rotSpeed = 0.008;
+
+                        if (Math.abs(deltaX) > 0.5) {
+                            targetEl.object3D.rotateY(deltaX * rotSpeed);
+                        }
+                        if (Math.abs(deltaY) > 0.5) {
+                            targetEl.object3D.rotateX(deltaY * rotSpeed);
+                        }
+
+                        const currentAngle = Math.atan2(dy, dx);
+                        const deltaAngle = currentAngle - lastTouchCenter.angle;
+                        if (Math.abs(deltaAngle) > 0.01) {
+                            targetEl.object3D.rotateZ(deltaAngle * 0.3);
+                        }
+                        lastTouchCenter.angle = currentAngle;
+                    }
+
+                    const midOffsetX = centerX - lastTouchCenter.x;
+                    const midOffsetY = centerY - lastTouchCenter.y;
+                    const moveSpeed = 0.001 * scale;
+                    targetEl.object3D.position.x -= midOffsetX * moveSpeed;
+                    targetEl.object3D.position.y += midOffsetY * moveSpeed;
+                    targetEl.object3D.position.x = Math.max(-2, Math.min(2, targetEl.object3D.position.x));
+                    targetEl.object3D.position.y = Math.max(-2, Math.min(2, targetEl.object3D.position.y));
+                    targetEl.object3D.position.z = 0;
+
+                    lastTouchCenter.x = centerX;
+                    lastTouchCenter.y = centerY;
+                    startDistance = distance;
+                }
+
+                function onTouchEnd(e) {
+                    if (e.touches.length < 2) {
+                        isPinching = false;
+                        lastTouchCenter = null;
+                    }
+                }
+            }
+        });
+    </script>
+
+    <!-- A-Frame Scene -->
+    <a-scene embedded
+             arjs="sourceType: webcam; detectionMode: mono; matrixCodeType: 3x3; debugUIEnabled: false; trackingMethod: best;"
+             renderer="antialias: true; alpha: true;"
+             gesture-control
+             vr-mode-ui="enabled: false">
+
+        <a-entity camera></a-entity>
+
+        <a-marker preset="hiro" id="planet-marker" emitevents="true" registerevents>
+            <a-light type="ambient" color="#ffffff" intensity="0.3"></a-light>
+            <a-light type="point" intensity="2" position="0 0 0" color="#ffaa00"></a-light>
+
+            <!-- Planet container (will be filled by JS) -->
+            <a-entity id="planet-obj"></a-entity>
+        </a-marker>
+    </a-scene>
+
+    <!-- Info panel (filled dynamically) -->
+    <div id="info-panel"></div>
+
+    <script>
+        (function() {
+            const debug = document.getElementById('debug-status');
+            const marker = document.getElementById('planet-marker');
+            const planetObj = document.getElementById('planet-obj');
+            const infoPanel = document.getElementById('info-panel');
+
+            // Planet data
+            const planetData = {
+                mercury: {
+                    name: 'Mercury',
+                    diameter: '4,879 km',
+                    distance: '57.9 million km',
+                    dayLength: '58.6 Earth days',
+                    yearLength: '88 Earth days',
+                    moons: 0,
+                    texture: 'mercury.jpg',
+                    ring: false
+                },
+                venus: {
+                    name: 'Venus',
+                    diameter: '12,104 km',
+                    distance: '108.2 million km',
+                    dayLength: '243 Earth days',
+                    yearLength: '225 Earth days',
+                    moons: 0,
+                    texture: 'venus.jpg',
+                    ring: false
+                },
+                earth: {
+                    name: 'Earth',
+                    diameter: '12,742 km',
+                    distance: '149.6 million km',
+                    dayLength: '24 hours',
+                    yearLength: '365 days',
+                    moons: 1,
+                    texture: 'earth.jpg',
+                    ring: false
+                },
+                mars: {
+                    name: 'Mars',
+                    diameter: '6,779 km',
+                    distance: '227.9 million km',
+                    dayLength: '24.6 hours',
+                    yearLength: '687 Earth days',
+                    moons: 2,
+                    texture: 'mars.jpg',
+                    ring: false
+                },
+                jupiter: {
+                    name: 'Jupiter',
+                    diameter: '139,820 km',
+                    distance: '778.5 million km',
+                    dayLength: '9.9 hours',
+                    yearLength: '11.9 Earth years',
+                    moons: 79,
+                    texture: 'jupiter.jpg',
+                    ring: false
+                },
+                saturn: {
+                    name: 'Saturn',
+                    diameter: '116,460 km',
+                    distance: '1.43 billion km',
+                    dayLength: '10.7 hours',
+                    yearLength: '29.5 Earth years',
+                    moons: 82,
+                    texture: 'saturn.jpg',
+                    ring: true,
+                    ringTexture: 'saturn_ring.png'
+                },
+                uranus: {
+                    name: 'Uranus',
+                    diameter: '50,724 km',
+                    distance: '2.87 billion km',
+                    dayLength: '17.2 hours',
+                    yearLength: '84 Earth years',
+                    moons: 27,
+                    texture: 'uranus.jpg',
+                    ring: true,
+                    ringTexture: 'uranus_ring.png'
+                },
+                neptune: {
+                    name: 'Neptune',
+                    diameter: '49,244 km',
+                    distance: '4.5 billion km',
+                    dayLength: '16.1 hours',
+                    yearLength: '165 Earth years',
+                    moons: 14,
+                    texture: 'neptune.jpg',
+                    ring: false
+                }
+            };
+
+            // Get planet name from URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const planetKey = urlParams.get('name') || 'earth';
+            const data = planetData[planetKey];
+
+            if (!data) {
+                infoPanel.innerHTML = '<h2>Planet not found</h2>';
+                return;
+            }
+
+            // Build the planet AR object
+            const spinDur = 8000; // ms for one full rotation
+            const planetEntity = document.createElement('a-entity');
+            planetEntity.setAttribute('position', '0 0 0');
+
+            // Sphere
+            const sphere = document.createElement('a-sphere');
+            sphere.setAttribute('radius', '0.25');
+            sphere.setAttribute('material', `src: url(images/${data.texture});`);
+            sphere.setAttribute('animation', `property: rotation; to: 0 360 0; dur: ${spinDur}; easing: linear; repeat: indefinite`);
+            planetEntity.appendChild(sphere);
+
+            // Add ring if needed
+            if (data.ring) {
+                const ring = document.createElement('a-ring');
+                ring.setAttribute('radius-inner', '0.35');
+                ring.setAttribute('radius-outer', '0.55');
+                ring.setAttribute('material', `src: url(images/${data.ringTexture}); transparent: true; side: double;`);
+                ring.setAttribute('rotation', '90 0 0');
+                ring.setAttribute('position', '0 0 0');
+                // Ring inherits the planet's spin, so we don't need a separate animation
+                planetEntity.appendChild(ring);
+            }
+
+            planetObj.appendChild(planetEntity);
+
+            // Build info panel
+            infoPanel.innerHTML = `
+                <h2>${data.name}</h2>
+                <p><strong>Diameter:</strong> ${data.diameter}</p>
+                <p><strong>Distance from Sun:</strong> ${data.distance}</p>
+                <p><strong>Day length:</strong> ${data.dayLength}</p>
+                <p><strong>Year length:</strong> ${data.yearLength}</p>
+                <p><strong>Moons:</strong> ${data.moons}</p>
+                <button class="read-btn" id="readBtn">🔊 Read Aloud</button>
+            `;
+
+            // Text-to-speech
+            document.getElementById('readBtn').addEventListener('click', () => {
+                const text = `Welcome to ${data.name}. Diameter: ${data.diameter}. Distance from Sun: ${data.distance}. Day length: ${data.dayLength}. Year length: ${data.yearLength}. Number of moons: ${data.moons}.`;
+                const utterance = new SpeechSynthesisUtterance(text);
+                window.speechSynthesis.speak(utterance);
+            });
+
+            // Marker events
+            marker.addEventListener('markerFound', () => {
+                debug.innerText = '✅ Marker FOUND!';
+                debug.style.color = '#0f0';
+            });
+            marker.addEventListener('markerLost', () => {
+                debug.innerText = '❌ Marker lost – show HIRO';
+                debug.style.color = '#ff0';
+            });
+
+            // Camera access check
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(() => console.log('Camera ready'))
+                .catch(() => {
+                    debug.innerText = '⚠️ Camera access denied';
+                    debug.style.color = '#f00';
+                });
+        })();
+    </script>
+</body>
+</html>
