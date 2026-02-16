@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>AR Solar System – Full Motion & Proper Orbits</title>
+    <title>AR Solar System – Full 3D Rotation & Zoom</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <!-- A-Frame and AR.js -->
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
@@ -58,7 +58,7 @@
     <div class="hint">📐 Pinch to scale • Two-finger drag to rotate any axis</div>
     <div id="debug-status">Initializing AR...</div>
 
-    <!-- Gesture handler with quaternion for true 3D rotation -->
+    <!-- Improved gesture handler with incremental 3D rotation -->
     <script>
         AFRAME.registerComponent('gesture-control', {
             init: function () {
@@ -69,11 +69,8 @@
                 }
 
                 const THREE = AFRAME.THREE;
-
                 let scale = 1;
-                let startScale = 1;
-                let startQuaternion = new THREE.Quaternion();
-                let startTouchDistance = 0;
+                let startDistance = 0;
                 let lastTouchCenter = null;
                 let isPinching = false;
 
@@ -91,9 +88,7 @@
                         const t2 = e.touches[1];
                         const dx = t1.clientX - t2.clientX;
                         const dy = t1.clientY - t2.clientY;
-                        startTouchDistance = Math.sqrt(dx * dx + dy * dy);
-                        startScale = scale;
-                        startQuaternion.copy(targetEl.object3D.quaternion);
+                        startDistance = Math.sqrt(dx * dx + dy * dy);
                         lastTouchCenter = {
                             x: (t1.clientX + t2.clientX) / 2,
                             y: (t1.clientY + t2.clientY) / 2
@@ -112,11 +107,11 @@
                     const distance = Math.sqrt(dx * dx + dy * dy);
 
                     // Scale
-                    const scaleFactor = distance / startTouchDistance;
-                    scale = startScale * scaleFactor;
+                    const scaleFactor = distance / startDistance;
+                    scale = Math.max(0.2, Math.min(5, scaleFactor)); // clamp scale
                     targetEl.object3D.scale.set(scale, scale, scale);
 
-                    // Rotation (trackball style)
+                    // Rotation: incremental based on center movement
                     const centerX = (t1.clientX + t2.clientX) / 2;
                     const centerY = (t1.clientY + t2.clientY) / 2;
                     if (lastTouchCenter) {
@@ -124,17 +119,30 @@
                         const deltaY = centerY - lastTouchCenter.y;
                         const rotSpeed = 0.01;
 
-                        const quatX = new THREE.Quaternion().setFromAxisAngle(
-                            new THREE.Vector3(1, 0, 0), deltaY * rotSpeed
-                        );
-                        const quatY = new THREE.Quaternion().setFromAxisAngle(
-                            new THREE.Vector3(0, 1, 0), deltaX * rotSpeed
-                        );
+                        // Calculate angle between fingers for roll (optional)
+                        const currentAngle = Math.atan2(dy, dx);
+                        const lastAngle = lastTouchCenter.angle || currentAngle;
+                        const deltaAngle = currentAngle - lastAngle;
 
-                        const combined = quatY.multiply(quatX);
-                        targetEl.object3D.quaternion.copy(startQuaternion.clone().premultiply(combined));
+                        // Apply rotations relative to current orientation
+                        // Rotate around world Y for horizontal drag (yaw)
+                        if (Math.abs(deltaX) > 1) {
+                            targetEl.object3D.rotateY(deltaX * rotSpeed);
+                        }
+                        // Rotate around world X for vertical drag (pitch)
+                        if (Math.abs(deltaY) > 1) {
+                            targetEl.object3D.rotateX(deltaY * rotSpeed);
+                        }
+                        // Rotate around world Z for finger twist (roll)
+                        if (Math.abs(deltaAngle) > 0.01) {
+                            targetEl.object3D.rotateZ(deltaAngle * 0.5);
+                        }
+
+                        lastTouchCenter.angle = currentAngle;
                     }
-                    lastTouchCenter = { x: centerX, y: centerY };
+                    lastTouchCenter.x = centerX;
+                    lastTouchCenter.y = centerY;
+                    startDistance = distance; // update for next scale step
                 }
 
                 function onTouchEnd(e) {
@@ -173,20 +181,17 @@
                 <a-sphere radius="0.25" position="0 0 0"
                           material="src: url(images/sun.jpg); emissive: #ff6600; emissiveIntensity: 1.5;"></a-sphere>
 
-                <!-- ===== STATIC ORBIT RINGS (matching planet distances) ===== -->
-                <a-ring radius="0.5"  radius-tubular="0.002" color="#aaa" material="transparent: true; opacity: 0.3" rotation="90 0 0" position="0 0 0"></a-ring> <!-- Mercury -->
-                <a-ring radius="0.7"  radius-tubular="0.002" color="#f90" material="transparent: true; opacity: 0.3" rotation="90 0 0" position="0 0 0"></a-ring> <!-- Venus -->
-                <a-ring radius="0.9"  radius-tubular="0.002" color="#2a7fff" material="transparent: true; opacity: 0.3" rotation="90 0 0" position="0 0 0"></a-ring> <!-- Earth -->
-                <a-ring radius="1.1"  radius-tubular="0.002" color="#c1440e" material="transparent: true; opacity: 0.3" rotation="90 0 0" position="0 0 0"></a-ring> <!-- Mars -->
-                <a-ring radius="1.5"  radius-tubular="0.005" color="#d8a27a" material="transparent: true; opacity: 0.3" rotation="90 0 0" position="0 0 0"></a-ring> <!-- Jupiter -->
-                <a-ring radius="1.9"  radius-tubular="0.005" color="#e0bb87" material="transparent: true; opacity: 0.3" rotation="90 0 0" position="0 0 0"></a-ring> <!-- Saturn -->
-                <a-ring radius="2.3"  radius-tubular="0.005" color="#7ec8e0" material="transparent: true; opacity: 0.3" rotation="90 0 0" position="0 0 0"></a-ring> <!-- Uranus -->
-                <a-ring radius="2.7"  radius-tubular="0.005" color="#4b70dd" material="transparent: true; opacity: 0.3" rotation="90 0 0" position="0 0 0"></a-ring> <!-- Neptune -->
+                <!-- ===== STATIC ORBIT RINGS ===== -->
+                <a-ring radius="0.5"  radius-tubular="0.002" color="#aaa" material="transparent: true; opacity: 0.3" rotation="90 0 0" position="0 0 0"></a-ring>
+                <a-ring radius="0.7"  radius-tubular="0.002" color="#f90" material="transparent: true; opacity: 0.3" rotation="90 0 0" position="0 0 0"></a-ring>
+                <a-ring radius="0.9"  radius-tubular="0.002" color="#2a7fff" material="transparent: true; opacity: 0.3" rotation="90 0 0" position="0 0 0"></a-ring>
+                <a-ring radius="1.1"  radius-tubular="0.002" color="#c1440e" material="transparent: true; opacity: 0.3" rotation="90 0 0" position="0 0 0"></a-ring>
+                <a-ring radius="1.5"  radius-tubular="0.005" color="#d8a27a" material="transparent: true; opacity: 0.3" rotation="90 0 0" position="0 0 0"></a-ring>
+                <a-ring radius="1.9"  radius-tubular="0.005" color="#e0bb87" material="transparent: true; opacity: 0.3" rotation="90 0 0" position="0 0 0"></a-ring>
+                <a-ring radius="2.3"  radius-tubular="0.005" color="#7ec8e0" material="transparent: true; opacity: 0.3" rotation="90 0 0" position="0 0 0"></a-ring>
+                <a-ring radius="2.7"  radius-tubular="0.005" color="#4b70dd" material="transparent: true; opacity: 0.3" rotation="90 0 0" position="0 0 0"></a-ring>
 
-                <!-- ===== PLANETS ===== -->
-                <!-- Each planet is an entity that rotates around the sun (revolution).
-                     Inside, the sphere spins on its own axis. -->
-                
+                <!-- ===== PLANETS (unchanged textures) ===== -->
                 <!-- Mercury -->
                 <a-entity class="planet" position="0.5 0 0">
                     <a-entity class="planet-spin" rotation="0 0 0">
