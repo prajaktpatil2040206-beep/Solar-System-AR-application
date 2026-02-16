@@ -3,13 +3,9 @@
 <head>
     <meta charset="utf-8">
     <title>AR Sphere</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <!-- A-Frame -->
-    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-
-    <!-- AR.js -->
-    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ar.js@3.3.2/three.js/build/ar-threex.js"></script>
 
     <style>
         body { margin: 0; overflow: hidden; }
@@ -17,23 +13,62 @@
 </head>
 
 <body>
+<script>
 
-<a-scene
-    embedded
-    arjs="sourceType: webcam;"
->
+const scene = new THREE.Scene();
+const camera = new THREE.Camera();
+scene.add(camera);
 
-    <a-marker preset="hiro">
-        <a-sphere
-            position="0 0.5 0"
-            radius="0.5"
-            color="white">
-        </a-sphere>
-    </a-marker>
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
 
-    <a-entity camera></a-entity>
+const arToolkitSource = new THREEx.ArToolkitSource({ sourceType: 'webcam' });
 
-</a-scene>
+arToolkitSource.init(() => onResize());
 
+window.addEventListener('resize', () => onResize());
+
+function onResize() {
+    arToolkitSource.onResize();
+    arToolkitSource.copySizeTo(renderer.domElement);
+}
+
+const arToolkitContext = new THREEx.ArToolkitContext({
+    cameraParametersUrl: 'https://cdn.jsdelivr.net/npm/ar.js@3.3.2/three.js/data/camera_para.dat',
+    detectionMode: 'mono'
+});
+
+arToolkitContext.init(() => {
+    camera.projectionMatrix.copy(arToolkitContext.getProjectionMatrix());
+});
+
+const markerRoot = new THREE.Group();
+scene.add(markerRoot);
+
+new THREEx.ArMarkerControls(arToolkitContext, markerRoot, {
+    type: 'pattern',
+    patternUrl: 'https://cdn.jsdelivr.net/npm/ar.js@3.3.2/three.js/data/patt.hiro'
+});
+
+const geometry = new THREE.SphereGeometry(0.5, 32, 32);
+const material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+const sphere = new THREE.Mesh(geometry, material);
+
+sphere.position.y = 0.5;
+markerRoot.add(sphere);
+
+function animate() {
+    requestAnimationFrame(animate);
+
+    if (arToolkitSource.ready)
+        arToolkitContext.update(arToolkitSource.domElement);
+
+    renderer.render(scene, camera);
+}
+
+animate();
+
+</script>
 </body>
 </html>
