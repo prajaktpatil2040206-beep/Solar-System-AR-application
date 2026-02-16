@@ -45,102 +45,133 @@
 </head>
 <body>
     <a href="index.html" class="back-btn">← Home</a>
-    <div class="info">🔵 Point at HIRO – two fingers to rotate, pinch to zoom</div>
+    <div class="info">🔵 Point at HIRO – 1 finger rotate · 2 fingers pan/zoom</div>
 
-    <!-- Gesture handler with truly unlimited zoom (practically no upper bound) -->
+    <!-- Gesture handler: 1-finger rotate, 2-finger pan & zoom -->
     <script>
         AFRAME.registerComponent('gesture-control', {
             init: function () {
                 const targetEl = document.getElementById('solar-system');
                 if (!targetEl) return;
 
-                const THREE = AFRAME.THREE;
-                let scale = 1;
+                // State
+                let isOneFinger = false;
+                let isTwoFinger = false;
+                let startTouch1 = { x: 0, y: 0 };
+                let startTouch2 = { x: 0, y: 0 };
                 let startDistance = 0;
-                let lastTouchCenter = { x: 0, y: 0 };
-                let isPinching = false;
-
-                targetEl.object3D.position.set(0, 0, 0);
+                let startScale = 1;
+                let startPosition = { x: 0, y: 0, z: 0 };
+                let startRotation = { x: 0, y: 0, z: 0 }; // Euler in radians
 
                 const canvas = this.el.canvas;
+                const speedRot = 0.005;      // rotation sensitivity
+                const speedPan = 0.001;       // pan sensitivity
+
                 canvas.addEventListener('touchstart', onTouchStart, { passive: false });
                 canvas.addEventListener('touchmove', onTouchMove, { passive: false });
                 canvas.addEventListener('touchend', onTouchEnd);
                 canvas.addEventListener('touchcancel', onTouchEnd);
 
                 function onTouchStart(e) {
-                    if (e.touches.length === 2) {
-                        e.preventDefault();
-                        isPinching = true;
-                        const t1 = e.touches[0];
-                        const t2 = e.touches[1];
+                    e.preventDefault();
+                    const touches = e.touches;
+                    if (touches.length === 1) {
+                        // Start one-finger rotation
+                        isOneFinger = true;
+                        isTwoFinger = false;
+                        const touch = touches[0];
+                        startTouch1.x = touch.clientX;
+                        startTouch1.y = touch.clientY;
+                        // Store current rotation (in radians)
+                        const rot = targetEl.object3D.rotation;
+                        startRotation.x = rot.x;
+                        startRotation.y = rot.y;
+                        startRotation.z = rot.z;
+                    } else if (touches.length === 2) {
+                        // Start two-finger pan/zoom
+                        isOneFinger = false;
+                        isTwoFinger = true;
+                        const t1 = touches[0];
+                        const t2 = touches[1];
+                        startTouch1.x = t1.clientX;
+                        startTouch1.y = t1.clientY;
+                        startTouch2.x = t2.clientX;
+                        startTouch2.y = t2.clientY;
+                        // Distance between fingers
                         const dx = t1.clientX - t2.clientX;
                         const dy = t1.clientY - t2.clientY;
                         startDistance = Math.sqrt(dx * dx + dy * dy);
-                        lastTouchCenter = {
-                            x: (t1.clientX + t2.clientX) / 2,
-                            y: (t1.clientY + t2.clientY) / 2,
-                            angle: Math.atan2(dy, dx)
-                        };
-                        this.startScale = scale;
-                        this.startPos = targetEl.object3D.position.clone();
+                        // Store current scale and position
+                        startScale = targetEl.object3D.scale.x; // uniform scale
+                        const pos = targetEl.object3D.position;
+                        startPosition.x = pos.x;
+                        startPosition.y = pos.y;
+                        startPosition.z = pos.z;
                     }
                 }
 
                 function onTouchMove(e) {
-                    if (!isPinching || e.touches.length !== 2) return;
                     e.preventDefault();
+                    const touches = e.touches;
 
-                    const t1 = e.touches[0];
-                    const t2 = e.touches[1];
-                    const dx = t1.clientX - t2.clientX;
-                    const dy = t1.clientY - t2.clientY;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    if (isOneFinger && touches.length === 1) {
+                        // One-finger rotation
+                        const touch = touches[0];
+                        const dx = touch.clientX - startTouch1.x;
+                        const dy = touch.clientY - startTouch1.y;
 
-                    // Scale – minimum 0.01, maximum practically unlimited (1e9)
-                    const scaleFactor = distance / startDistance;
-                    scale = this.startScale * scaleFactor;
-                    scale = Math.max(0.01, Math.min(1e9, scale));   // Max set to 1 billion
-                    targetEl.object3D.scale.set(scale, scale, scale);
+                        // Rotate around world Y (horizontal) and world X (vertical)
+                        targetEl.object3D.rotateOnWorldY(-dx * speedRot);  // negate for natural direction
+                        targetEl.object3D.rotateOnWorldX(dy * speedRot);
 
-                    const centerX = (t1.clientX + t2.clientX) / 2;
-                    const centerY = (t1.clientY + t2.clientY) / 2;
-                    if (lastTouchCenter) {
-                        const deltaX = centerX - lastTouchCenter.x;
-                        const deltaY = centerY - lastTouchCenter.y;
-                        const rotSpeed = 0.008;
+                        // Update start touch for continuous rotation
+                        startTouch1.x = touch.clientX;
+                        startTouch1.y = touch.clientY;
+                    } 
+                    else if (isTwoFinger && touches.length === 2) {
+                        const t1 = touches[0];
+                        const t2 = touches[1];
 
-                        if (Math.abs(deltaX) > 0.5) {
-                            targetEl.object3D.rotateY(deltaX * rotSpeed);
-                        }
-                        if (Math.abs(deltaY) > 0.5) {
-                            targetEl.object3D.rotateX(deltaY * rotSpeed);
-                        }
+                        // --- Scale (pinch) ---
+                        const dx = t1.clientX - t2.clientX;
+                        const dy = t1.clientY - t2.clientY;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        const scaleFactor = distance / startDistance;
+                        let newScale = startScale * scaleFactor;
+                        // Clamp to reasonable values (min 0.01, max practically unlimited)
+                        newScale = Math.max(0.01, Math.min(1e9, newScale));
+                        targetEl.object3D.scale.set(newScale, newScale, newScale);
 
-                        const currentAngle = Math.atan2(dy, dx);
-                        const deltaAngle = currentAngle - lastTouchCenter.angle;
-                        if (Math.abs(deltaAngle) > 0.01) {
-                            targetEl.object3D.rotateZ(deltaAngle * 0.3);
-                        }
-                        lastTouchCenter.angle = currentAngle;
+                        // --- Pan (move in screen plane) ---
+                        const midX = (t1.clientX + t2.clientX) / 2;
+                        const midY = (t1.clientY + t2.clientY) / 2;
+                        const prevMidX = (startTouch1.x + startTouch2.x) / 2;
+                        const prevMidY = (startTouch1.y + startTouch2.y) / 2;
+                        const deltaX = midX - prevMidX;
+                        const deltaY = midY - prevMidY;
+
+                        // Move the object in world space (X right, Y up)
+                        // The marker's world axes: X right, Y up, Z out of marker.
+                        // We'll move in X and Y only (Z remains 0 for simplicity)
+                        targetEl.object3D.position.x = startPosition.x - deltaX * speedPan * newScale;
+                        targetEl.object3D.position.y = startPosition.y + deltaY * speedPan * newScale; // screen Y is opposite world Y? Usually screen Y down, world Y up, so we add.
+
+                        // Note: we keep Z untouched (0)
                     }
-
-                    // Pan (translation) – no limits
-                    const midOffsetX = centerX - lastTouchCenter.x;
-                    const midOffsetY = centerY - lastTouchCenter.y;
-                    const moveSpeed = 0.001 * scale;
-                    targetEl.object3D.position.x -= midOffsetX * moveSpeed;
-                    targetEl.object3D.position.y += midOffsetY * moveSpeed;
-
-                    lastTouchCenter.x = centerX;
-                    lastTouchCenter.y = centerY;
-                    startDistance = distance;
                 }
 
                 function onTouchEnd(e) {
-                    if (e.touches.length < 2) {
-                        isPinching = false;
-                        lastTouchCenter = null;
+                    const touches = e.touches;
+                    if (touches.length === 0) {
+                        // No fingers left
+                        isOneFinger = false;
+                        isTwoFinger = false;
+                    } else if (touches.length === 1) {
+                        // Transition from two-finger to one-finger? We'll just reset and let new gesture start.
+                        isOneFinger = false;
+                        isTwoFinger = false;
+                        // Optionally, we could restart one-finger with the remaining touch, but simpler to reset.
                     }
                 }
             }
@@ -164,8 +195,7 @@
                 <a-sphere radius="0.25" position="0 0 0"
                           material="src: url(images/sun.jpg); emissive: #ff6600; emissiveIntensity: 1.5;"></a-sphere>
 
-                <!-- ORBIT RINGS (completely removed – no golden circles) -->
-                <!-- All <a-ring> elements have been deleted -->
+                <!-- ORBIT RINGS (all removed – no golden circles) -->
 
                 <!-- PLANETS -->
                 <!-- Mercury -->
