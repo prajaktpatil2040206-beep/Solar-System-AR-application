@@ -47,7 +47,7 @@
     <a href="index.html" class="back-btn">← Home</a>
     <div class="info">🔵 Point at HIRO – two fingers to rotate, pinch to zoom</div>
 
-    <!-- Gesture handler with unlimited zoom and free movement -->
+    <!-- Gesture handler with extreme zoom range and free movement -->
     <script>
         AFRAME.registerComponent('gesture-control', {
             init: function () {
@@ -97,10 +97,10 @@
                     const dy = t1.clientY - t2.clientY;
                     const distance = Math.sqrt(dx * dx + dy * dy);
 
-                    // Scale – removed upper limit (practically unlimited, but keep a reasonable max of 500)
+                    // Scale – now you can zoom out to 0.01x and in to 1000x
                     const scaleFactor = distance / startDistance;
                     scale = this.startScale * scaleFactor;
-                    scale = Math.max(0.1, Math.min(500, scale));   // Increased max from 20 to 500
+                    scale = Math.max(0.01, Math.min(1000, scale));   // Min 0.01, Max 1000
                     targetEl.object3D.scale.set(scale, scale, scale);
 
                     const centerX = (t1.clientX + t2.clientX) / 2;
@@ -125,14 +125,12 @@
                         lastTouchCenter.angle = currentAngle;
                     }
 
-                    // Pan (translation) – removed all position limits
+                    // Pan (translation) – no limits
                     const midOffsetX = centerX - lastTouchCenter.x;
                     const midOffsetY = centerY - lastTouchCenter.y;
                     const moveSpeed = 0.001 * scale;
                     targetEl.object3D.position.x -= midOffsetX * moveSpeed;
                     targetEl.object3D.position.y += midOffsetY * moveSpeed;
-                    // No clamping on position – you can move the model anywhere
-                    // Also removed the line that forced position.z = 0
 
                     lastTouchCenter.x = centerX;
                     lastTouchCenter.y = centerY;
@@ -166,15 +164,15 @@
                 <a-sphere radius="0.25" position="0 0 0"
                           material="src: url(images/sun.jpg); emissive: #ff6600; emissiveIntensity: 1.5;"></a-sphere>
 
-                <!-- ORBIT RINGS -->
-                <a-ring radius="0.5"  radius-tubular="0.002" material="color: #aaa; transparent: true; opacity: 0.3" rotation="90 0 0" position="0 0 0"></a-ring>
-                <a-ring radius="0.7"  radius-tubular="0.002" material="color: #f90; transparent: true; opacity: 0.3" rotation="90 0 0" position="0 0 0"></a-ring>
-                <a-ring radius="0.9"  radius-tubular="0.002" material="color: #2a7fff; transparent: true; opacity: 0.3" rotation="90 0 0" position="0 0 0"></a-ring>
-                <a-ring radius="1.1"  radius-tubular="0.002" material="color: #c1440e; transparent: true; opacity: 0.3" rotation="90 0 0" position="0 0 0"></a-ring>
-                <a-ring radius="1.5"  radius-tubular="0.005" material="color: #d8a27a; transparent: true; opacity: 0.3" rotation="90 0 0" position="0 0 0"></a-ring>
-                <a-ring radius="1.9"  radius-tubular="0.005" material="color: #e0bb87; transparent: true; opacity: 0.3" rotation="90 0 0" position="0 0 0"></a-ring>
-                <a-ring radius="2.3"  radius-tubular="0.005" material="color: #7ec8e0; transparent: true; opacity: 0.3" rotation="90 0 0" position="0 0 0"></a-ring>
-                <a-ring radius="2.7"  radius-tubular="0.005" material="color: #4b70dd; transparent: true; opacity: 0.3" rotation="90 0 0" position="0 0 0"></a-ring>
+                <!-- ORBIT RINGS (removed – they caused the "black ring" when zoomed out) -->
+                <!-- <a-ring radius="0.5"  radius-tubular="0.002" material="color: #aaa; transparent: true; opacity: 0.3" rotation="90 0 0" position="0 0 0"></a-ring> -->
+                <!-- <a-ring radius="0.7"  radius-tubular="0.002" material="color: #f90; transparent: true; opacity: 0.3" rotation="90 0 0" position="0 0 0"></a-ring> -->
+                <!-- <a-ring radius="0.9"  radius-tubular="0.002" material="color: #2a7fff; transparent: true; opacity: 0.3" rotation="90 0 0" position="0 0 0"></a-ring> -->
+                <!-- <a-ring radius="1.1"  radius-tubular="0.002" material="color: #c1440e; transparent: true; opacity: 0.3" rotation="90 0 0" position="0 0 0"></a-ring> -->
+                <!-- <a-ring radius="1.5"  radius-tubular="0.005" material="color: #d8a27a; transparent: true; opacity: 0.3" rotation="90 0 0" position="0 0 0"></a-ring> -->
+                <!-- <a-ring radius="1.9"  radius-tubular="0.005" material="color: #e0bb87; transparent: true; opacity: 0.3" rotation="90 0 0" position="0 0 0"></a-ring> -->
+                <!-- <a-ring radius="2.3"  radius-tubular="0.005" material="color: #7ec8e0; transparent: true; opacity: 0.3" rotation="90 0 0" position="0 0 0"></a-ring> -->
+                <!-- <a-ring radius="2.7"  radius-tubular="0.005" material="color: #4b70dd; transparent: true; opacity: 0.3" rotation="90 0 0" position="0 0 0"></a-ring> -->
 
                 <!-- PLANETS -->
                 <!-- Mercury -->
