@@ -2,22 +2,44 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Stable AR Solar System</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AR Sphere - Hiro Marker</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 
-    <!-- ✅ THREE.JS FIRST -->
-    <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
+    <!-- A-Frame -->
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
 
-    <!-- ✅ AR.js -->
-    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/three.js/build/ar-threex.js"></script>
+    <!-- AR.js -->
+    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
+
+    <!-- Your JS -->
+    <script src="script.js"></script>
 
     <style>
-        body { margin: 0; overflow: hidden; }
-        canvas { position: absolute; top: 0; left: 0; }
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
     </style>
 </head>
 
 <body>
-    <script src="app.js"></script>
+
+<a-scene
+    embedded
+    arjs="sourceType: webcam; debugUIEnabled: false;"
+    renderer="logarithmicDepthBuffer: true;"
+>
+
+    <a-marker preset="hiro">
+
+        <!-- Sphere created via JS -->
+        <a-entity id="sphere-container"></a-entity>
+
+    </a-marker>
+
+    <a-entity camera></a-entity>
+
+</a-scene>
+
 </body>
 </html>
