@@ -2,43 +2,29 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
   <title>Solar System AR - Hiro Marker</title>
+
   <style>
     body { margin: 0; overflow: hidden; }
     canvas { display: block; }
-    /* Stylish GUI Panel */
-    .dg.ac {
-      position: fixed !important;
-      top: 10px !important;
-      left: 10px !important;  
-      right: auto !important;
-      z-index: 9999 !important;
-      border-radius: 10px;
-      overflow: visible;
-      font-family: 'Segoe UI', sans-serif;
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
-      backdrop-filter: blur(5px);
-      transition: all 0.3s ease;
-    }
-    body.light-mode .dg.ac { background: #f9f9f9 !important; color: #111 !important; }
-    body.light-mode .dg .cr { background: #fff !important; border-bottom: 1px solid #ddd !important; color: #000 !important; }
-    body.light-mode .dg .cr input { background: #eee !important; color: #000 !important; }
-    body.light-mode .dg .title { background: #e0e0e0 !important; color: #111 !important; font-weight: bold; }
-    body:not(.light-mode) .dg.ac { background: #1e1e1e !important; color: #fff !important; }
-    body:not(.light-mode) .dg .cr { background: #2a2a2a !important; border-bottom: 1px solid #444 !important; color: #fff !important; }
-    body:not(.light-mode) .dg .cr input { background: #333 !important; color: #fff !important; }
-    body:not(.light-mode) .dg .title { background: #2c2c2c !important; color: #fff !important; font-weight: bold; }
-    .dg .title::before { border-color: currentColor transparent transparent transparent; }
-    .dg .cr { padding: 6px 10px; }
   </style>
-  <!-- AR.js (Three.js version) -->
-  <script src="https://cdn.jsdelivr.net/npm/@ar-js-org/ar.js@3.4.2/three.js/build/ar-threex.js"></script>
+</head>
+
+<body>
+
+  <!-- Three.js (GLOBAL version required for AR.js) -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.127.0/build/three.min.js"></script>
+
+  <!-- AR.js -->
+  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/three.js/build/ar-threex.js"></script>
+
   <!-- dat.GUI -->
   <script src="https://cdn.jsdelivr.net/npm/dat.gui@0.7.9/build/dat.gui.min.js"></script>
-</head>
-<body>
-  <!-- Main script (type="module" because we use import for Three.js) -->
-  <script type="module" src="script.js"></script>
+
+  <!-- Your Script -->
+  <script src="script.js"></script>
+
 </body>
 </html>
