@@ -14,29 +14,59 @@ const planetData = {
   neptune: { name:'Neptune', size:1.1, texture:'neptune.jpg', info:'Neptune is deep blue and has the strongest winds in the solar system.' }
 }[planetName];
 
-// Setup AR scene
+// Setup renderer
 const canvas = document.getElementById('ar-canvas');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
 
 const scene = new THREE.Scene();
+// We'll set the background later once the video is ready
 
 const camera = new THREE.Camera();
 camera.matrixAutoUpdate = false;
 
-// AR controller
+// --- AR.js setup ---
 const arController = new THREEx.ArController(renderer, camera, canvas);
-arController.source = new THREEx.ArSource('webcam', { cameraParam: 'data/camera_para.dat' }); // default Hiro marker
+// Create video source for webcam
+arController.source = new THREEx.ArSource('webcam', {
+  cameraParamUrl: 'data/camera_para.dat'  // Ensure this file exists
+});
+
+// Get the video element created by ArSource
+const video = arController.source.domElement;
+video.setAttribute('playsinline', '');
+video.style.position = 'absolute';
+video.style.top = '0';
+video.style.left = '0';
+video.style.width = '100%';
+video.style.height = '100%';
+video.style.objectFit = 'cover';
+video.style.zIndex = '-1';  // Place behind canvas
+document.body.appendChild(video);  // Add to DOM to ensure it plays
+
+// Once video is ready, set as scene background
+video.addEventListener('loadeddata', () => {
+  const videoTexture = new THREE.VideoTexture(video);
+  videoTexture.minFilter = THREE.LinearFilter;
+  videoTexture.magFilter = THREE.LinearFilter;
+  videoTexture.format = THREE.RGBAFormat;
+  scene.background = videoTexture;
+});
+
+// Configure AR detection
 arController.context.arController.setPatternDetectionMode(artoolkit.AR_MATRIX_CODE_DETECTION);
 arController.setPatternDetectionMode(artoolkit.AR_TEMPLATE_MATCHING_COLOR);
-arController.loadMarker('data/hiro.patt', markerId => {
+
+// Load Hiro marker pattern (you can also use a different pattern)
+arController.loadMarker('data/hiro.patt', (markerId) => {
   arController.trackMarker(markerId, {
     onAdded: (marker) => createContent(marker),
     onUpdated: (marker) => updateContent(marker),
     onRemoved: () => removeContent()
   });
 });
+
 arController.start();
 
 // Planet and card holders
@@ -49,27 +79,35 @@ function createContent(marker) {
   const geo = new THREE.SphereGeometry(planetData.size, 32, 32);
   const mat = new THREE.MeshStandardMaterial({ map: texture });
   planetMesh = new THREE.Mesh(geo, mat);
-  planetMesh.position.set(0, planetData.size/2, 0); // sit on marker
+  planetMesh.position.set(0, planetData.size / 2, 0); // sit on marker plane
+
+  // Add a subtle ambient light and a point light to illuminate the planet
+  const light = new THREE.PointLight(0xffffff, 1);
+  light.position.set(2, 5, 5);
+  marker.add(light);
 
   // Info card (3D plane with canvas texture)
-  const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 256;
-  const ctx = canvas.getContext('2d');
+  const canvasElem = document.createElement('canvas');
+  canvasElem.width = 512;
+  canvasElem.height = 256;
+  const ctx = canvasElem.getContext('2d');
+
   // Glass card style
-  ctx.fillStyle = 'rgba(255,255,255,0.15)';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+  ctx.fillRect(0, 0, canvasElem.width, canvasElem.height);
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
   ctx.lineWidth = 4;
-  ctx.strokeRect(0, 0, canvas.width, canvas.height);
-  ctx.font = 'bold 40px "Segoe UI"';
+  ctx.strokeRect(0, 0, canvasElem.width, canvasElem.height);
+
+  ctx.font = 'bold 40px "Segoe UI", sans-serif';
   ctx.fillStyle = 'white';
   ctx.fillText(planetData.name, 30, 70);
-  ctx.font = '24px "Segoe UI"';
+
+  ctx.font = '24px "Segoe UI", sans-serif';
   ctx.fillStyle = '#ddd';
   wrapText(ctx, planetData.info, 30, 120, 450, 30);
 
-  const cardTexture = new THREE.CanvasTexture(canvas);
+  const cardTexture = new THREE.CanvasTexture(canvasElem);
   const cardGeo = new THREE.PlaneGeometry(4, 2);
   const cardMat = new THREE.MeshBasicMaterial({ map: cardTexture, side: THREE.DoubleSide, transparent: true });
   cardMesh = new THREE.Mesh(cardGeo, cardMat);
@@ -134,7 +172,7 @@ window.addEventListener('resize', () => {
 
 // Animation loop
 function animate() {
-  if (arController) arController.process();
+  if (arController) arController.process();  // Process marker detection
   renderer.render(scene, camera);
   requestAnimationFrame(animate);
 }
