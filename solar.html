@@ -47,7 +47,7 @@
     <a href="index.html" class="back-btn">← Home</a>
     <div class="info">🔵 Point at HIRO – two fingers to rotate, pinch to zoom</div>
 
-    <!-- Gesture handler (full 3D rotation) -->
+    <!-- Gesture handler with unlimited zoom and free movement -->
     <script>
         AFRAME.registerComponent('gesture-control', {
             init: function () {
@@ -97,9 +97,10 @@
                     const dy = t1.clientY - t2.clientY;
                     const distance = Math.sqrt(dx * dx + dy * dy);
 
+                    // Scale – removed upper limit (practically unlimited, but keep a reasonable max of 500)
                     const scaleFactor = distance / startDistance;
                     scale = this.startScale * scaleFactor;
-                    scale = Math.max(0.2, Math.min(20, scale));
+                    scale = Math.max(0.1, Math.min(500, scale));   // Increased max from 20 to 500
                     targetEl.object3D.scale.set(scale, scale, scale);
 
                     const centerX = (t1.clientX + t2.clientX) / 2;
@@ -124,14 +125,14 @@
                         lastTouchCenter.angle = currentAngle;
                     }
 
+                    // Pan (translation) – removed all position limits
                     const midOffsetX = centerX - lastTouchCenter.x;
                     const midOffsetY = centerY - lastTouchCenter.y;
                     const moveSpeed = 0.001 * scale;
                     targetEl.object3D.position.x -= midOffsetX * moveSpeed;
                     targetEl.object3D.position.y += midOffsetY * moveSpeed;
-                    targetEl.object3D.position.x = Math.max(-2, Math.min(2, targetEl.object3D.position.x));
-                    targetEl.object3D.position.y = Math.max(-2, Math.min(2, targetEl.object3D.position.y));
-                    targetEl.object3D.position.z = 0;
+                    // No clamping on position – you can move the model anywhere
+                    // Also removed the line that forced position.z = 0
 
                     lastTouchCenter.x = centerX;
                     lastTouchCenter.y = centerY;
@@ -262,7 +263,6 @@
 
     <script>
         const marker = document.getElementById('solar-marker');
-        const debug = document.getElementById('debug-status');
         marker.addEventListener('markerFound', () => {
             document.querySelector('.info').innerHTML = '✅ Marker FOUND! Solar system visible.';
         });
