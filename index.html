@@ -2,94 +2,223 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>AR Style Sphere</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌍 AR Solar System – Hiro Marker</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <!-- A-Frame and AR.js -->
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
 
     <style>
         body { margin: 0; overflow: hidden; }
-        video {
-            position: fixed;
-            top: 0;
+        .info {
+            position: absolute;
+            bottom: 20px;
             left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            z-index: -1;
-        }
-        canvas {
-            position: fixed;
-            top: 0;
-            left: 0;
+            right: 0;
+            text-align: center;
+            color: white;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            font-family: Arial, sans-serif;
+            pointer-events: none;
+            z-index: 999;
+            border-radius: 40px;
+            width: fit-content;
+            margin: 0 auto;
+            backdrop-filter: blur(5px);
         }
     </style>
 </head>
-
 <body>
+    <div class="info">🔵 Point camera at <strong>HIRO marker</strong> to see the Solar System</div>
 
-<video id="camera" autoplay playsinline></video>
+    <a-scene embedded arjs="sourceType: webcam; detectionMode: mono; debugUIEnabled: false;">
 
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+        <!-- Camera (required) -->
+        <a-entity camera></a-entity>
 
-<script>
-    const video = document.getElementById("camera");
+        <!-- This marker will trigger the solar system -->
+        <a-marker preset="hiro" id="solar-marker">
 
-    // Start Camera
-    navigator.mediaDevices.getUserMedia({ video: true })
-        .then(stream => {
-            video.srcObject = stream;
-        });
+            <!-- We'll group everything inside the marker -->
+            <a-entity id="solar-system">
 
-    // Scene
-    const scene = new THREE.Scene();
+                <!-- Sun (glowing) -->
+                <a-sphere radius="0.25" color="#ffaa00" position="0 0 0" 
+                          material="emissive: #ff5500"></a-sphere>
 
-    // Camera
-    const camera = new THREE.PerspectiveCamera(
-        70,
-        window.innerWidth / window.innerHeight,
-        0.01,
-        100
-    );
-    camera.position.z = 1;
+                <!-- Orbit lines (invisible circles that hold the planets) -->
+                <!-- Mercury Orbit (and planet) -->
+                <a-entity rotation="0 0 0">
+                    <a-ring radius="0.5" radius-tubular="0.005" color="#888" 
+                            material="transparent: true; opacity: 0.3" 
+                            rotation="90 0 0"></a-ring>
+                    <a-sphere radius="0.06" color="#aaaaaa" 
+                              position="0.5 0 0" 
+                              animation="property: position; to: 0.5 0 0; dur: 3000; easing: linear; loop: true; 
+                                         dir: alternate; 
+                                         from: -0.5 0 0; 
+                                         startEvents: ; 
+                                         pauseEvents: ; 
+                                         elasticity: 1;
+                                         autoplay: true;
+                                         enabled: true;
+                                         
+                                         Actually we need revolution around sun. 
+                                         Better to use a rotation wrapper.">
+                    </a-sphere>
+                </a-entity>
 
-    // Renderer
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    document.body.appendChild(renderer.domElement);
+                <!-- Simpler: use a entity for each planet with rotation around sun -->
+                <!-- Mercury -->
+                <a-entity rotation="0 0 0">
+                    <a-ring radius="0.5" radius-tubular="0.002" color="#888" 
+                            material="transparent: true; opacity: 0.2" 
+                            rotation="90 0 0"></a-ring>
+                    <a-sphere radius="0.05" color="#b0b0b0" 
+                              position="0.5 0 0">
+                        <a-animation attribute="position" 
+                                     from="0.5 0 0" 
+                                     to="-0.5 0 0" 
+                                     dur="4000" 
+                                     easing="linear" 
+                                     repeat="indefinite"
+                                     direction="alternate"></a-animation>
+                    </a-sphere>
+                </a-entity>
 
-    // Light
-    const light = new THREE.HemisphereLight(0xffffff, 0x444444, 2);
-    scene.add(light);
+                <!-- Wait, this method (alternate) goes back and forth, not circular. 
+                     Better to use a rotation around the sun by wrapping planet in a rotated group. -->
 
-    // Sphere
-    const geometry = new THREE.SphereGeometry(0.2, 64, 64);
-    const material = new THREE.MeshStandardMaterial({
-        color: 0x00aaff,
-        metalness: 0.3,
-        roughness: 0.2
-    });
+                <!-- Let's redesign: Each planet will be inside a group that rotates around Y axis,
+                     and the planet itself is offset along X. That gives perfect circular orbit. -->
 
-    const sphere = new THREE.Mesh(geometry, material);
-    scene.add(sphere);
+                <!-- Mercury -->
+                <a-entity rotation="0 0 0" id="mercury-orbit">
+                    <a-ring radius="0.5" radius-tubular="0.002" color="#aaa" 
+                            material="transparent: true; opacity: 0.3" 
+                            rotation="90 0 0"></a-ring>
+                    <a-sphere radius="0.05" color="#b0b0b0" position="0.5 0 0"></a-sphere>
+                    <a-animation attribute="rotation" 
+                                 to="0 360 0" 
+                                 dur="5000" 
+                                 easing="linear" 
+                                 repeat="indefinite"></a-animation>
+                </a-entity>
 
-    // Animation
-    function animate() {
-        requestAnimationFrame(animate);
+                <!-- Venus -->
+                <a-entity rotation="0 60 0" id="venus-orbit">
+                    <a-ring radius="0.7" radius-tubular="0.002" color="#f90" 
+                            material="transparent: true; opacity: 0.3" 
+                            rotation="90 0 0"></a-ring>
+                    <a-sphere radius="0.06" color="#f9c28d" position="0.7 0 0"></a-sphere>
+                    <a-animation attribute="rotation" 
+                                 to="0 360 0" 
+                                 dur="7000" 
+                                 easing="linear" 
+                                 repeat="indefinite"></a-animation>
+                </a-entity>
 
-        sphere.rotation.y += 0.01;
-        sphere.rotation.x += 0.005;
+                <!-- Earth -->
+                <a-entity rotation="0 120 0" id="earth-orbit">
+                    <a-ring radius="0.9" radius-tubular="0.002" color="#2a7fff" 
+                            material="transparent: true; opacity: 0.3" 
+                            rotation="90 0 0"></a-ring>
+                    <a-sphere radius="0.065" color="#2a7fff" position="0.9 0 0"></a-sphere>
+                    <a-animation attribute="rotation" 
+                                 to="0 360 0" 
+                                 dur="9000" 
+                                 easing="linear" 
+                                 repeat="indefinite"></a-animation>
+                </a-entity>
 
-        renderer.render(scene, camera);
-    }
+                <!-- Mars -->
+                <a-entity rotation="0 180 0" id="mars-orbit">
+                    <a-ring radius="1.1" radius-tubular="0.002" color="#c1440e" 
+                            material="transparent: true; opacity: 0.3" 
+                            rotation="90 0 0"></a-ring>
+                    <a-sphere radius="0.055" color="#c1440e" position="1.1 0 0"></a-sphere>
+                    <a-animation attribute="rotation" 
+                                 to="0 360 0" 
+                                 dur="11000" 
+                                 easing="linear" 
+                                 repeat="indefinite"></a-animation>
+                </a-entity>
 
-    animate();
+                <!-- Jupiter (big) -->
+                <a-entity rotation="0 240 0" id="jupiter-orbit">
+                    <a-ring radius="1.4" radius-tubular="0.005" color="#d8a27a" 
+                            material="transparent: true; opacity: 0.3" 
+                            rotation="90 0 0"></a-ring>
+                    <a-sphere radius="0.12" color="#d8a27a" position="1.4 0 0"></a-sphere>
+                    <a-animation attribute="rotation" 
+                                 to="0 360 0" 
+                                 dur="14000" 
+                                 easing="linear" 
+                                 repeat="indefinite"></a-animation>
+                </a-entity>
 
-    // Resize Fix
-    window.addEventListener("resize", () => {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-    });
-</script>
+                <!-- Saturn (with ring) -->
+                <a-entity rotation="0 300 0" id="saturn-orbit">
+                    <a-ring radius="1.7" radius-tubular="0.005" color="#e0bb87" 
+                            material="transparent: true; opacity: 0.3" 
+                            rotation="90 0 0"></a-ring>
+                    <!-- Saturn sphere -->
+                    <a-sphere radius="0.1" color="#e0bb87" position="1.7 0 0"></a-sphere>
+                    <!-- Ring (torus) -->
+                    <a-torus radius="0.18" radius-tubular="0.01" color="#c0a070" 
+                             rotation="90 0 0" position="1.7 0 0"></a-torus>
+                    <a-animation attribute="rotation" 
+                                 to="0 360 0" 
+                                 dur="17000" 
+                                 easing="linear" 
+                                 repeat="indefinite"></a-animation>
+                </a-entity>
 
+                <!-- Uranus -->
+                <a-entity rotation="0 30 0" id="uranus-orbit">
+                    <a-ring radius="2.0" radius-tubular="0.005" color="#7ec8e0" 
+                            material="transparent: true; opacity: 0.3" 
+                            rotation="90 0 0"></a-ring>
+                    <a-sphere radius="0.08" color="#7ec8e0" position="2.0 0 0"></a-sphere>
+                    <a-animation attribute="rotation" 
+                                 to="0 360 0" 
+                                 dur="20000" 
+                                 easing="linear" 
+                                 repeat="indefinite"></a-animation>
+                </a-entity>
+
+                <!-- Neptune -->
+                <a-entity rotation="0 150 0" id="neptune-orbit">
+                    <a-ring radius="2.3" radius-tubular="0.005" color="#4b70dd" 
+                            material="transparent: true; opacity: 0.3" 
+                            rotation="90 0 0"></a-ring>
+                    <a-sphere radius="0.08" color="#4b70dd" position="2.3 0 0"></a-sphere>
+                    <a-animation attribute="rotation" 
+                                 to="0 360 0" 
+                                 dur="23000" 
+                                 easing="linear" 
+                                 repeat="indefinite"></a-animation>
+                </a-entity>
+
+                <!-- Some stars for effect (small particles) -->
+                <a-entity position="0 0 0">
+                    <a-sphere radius="0.02" color="#fff" position="0.5 0.3 0.5"></a-sphere>
+                    <a-sphere radius="0.02" color="#fff" position="-0.4 0.5 0.6"></a-sphere>
+                    <a-sphere radius="0.02" color="#fff" position="0.3 -0.2 1.0"></a-sphere>
+                    <a-sphere radius="0.02" color="#fff" position="-0.6 0.1 0.8"></a-sphere>
+                    <a-sphere radius="0.02" color="#fff" position="0.8 0.4 -0.3"></a-sphere>
+                    <a-sphere radius="0.02" color="#fff" position="-0.3 -0.4 1.2"></a-sphere>
+                </a-entity>
+
+            </a-entity> <!-- /solar-system -->
+        </a-marker>
+
+    </a-scene>
+
+    <!-- Explanation of steps -->
+    <div style="position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.5); color: white; padding: 5px; border-radius: 5px; font-size: 12px; z-index: 1000;">
+        Steps: ① Print Hiro marker ② Open this page on phone ③ Point at marker
+    </div>
 </body>
 </html>
