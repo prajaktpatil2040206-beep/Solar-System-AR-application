@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>AR Solar System – Your Textured Planets</title>
+    <title>AR Solar System – Gesture Zoom & Rotate</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <!-- A-Frame and AR.js -->
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
@@ -41,10 +41,71 @@
     </style>
 </head>
 <body>
-    <div class="info">🔵 Point camera at <strong>HIRO marker</strong> to see your Solar System</div>
-    <div class="hint">📐 Move around the marker – view changes realistically</div>
+    <div class="info">🔵 Point camera at <strong>HIRO marker</strong> – use two fingers to zoom/rotate</div>
+    <div class="hint">📐 Pinch to zoom • Two-finger rotate</div>
 
-    <!-- ✅ Fixed: alpha: true enables camera background -->
+    <!-- Custom gesture handler component -->
+    <script>
+        AFRAME.registerComponent('gesture-handler', {
+            init: function () {
+                this.scale = 1;
+                this.rotationY = 0;
+                this.touchStartDistance = 0;
+                this.touchStartAngle = 0;
+                this.startScale = 1;
+                this.startRotationY = 0;
+                this.isPinching = false;
+
+                this.el.addEventListener('touchstart', this.onTouchStart.bind(this));
+                this.el.addEventListener('touchmove', this.onTouchMove.bind(this));
+                this.el.addEventListener('touchend', this.onTouchEnd.bind(this));
+            },
+
+            onTouchStart: function (e) {
+                if (e.touches.length === 2) {
+                    this.isPinching = true;
+                    const dx = e.touches[0].clientX - e.touches[1].clientX;
+                    const dy = e.touches[0].clientY - e.touches[1].clientY;
+                    this.touchStartDistance = Math.sqrt(dx * dx + dy * dy);
+                    this.touchStartAngle = Math.atan2(dy, dx);
+                    this.startScale = this.scale;
+                    this.startRotationY = this.rotationY;
+                    e.preventDefault();
+                }
+            },
+
+            onTouchMove: function (e) {
+                if (this.isPinching && e.touches.length === 2) {
+                    const dx = e.touches[0].clientX - e.touches[1].clientX;
+                    const dy = e.touches[0].clientY - e.touches[1].clientY;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    const angle = Math.atan2(dy, dx);
+
+                    // Scale factor
+                    const scaleFactor = distance / this.touchStartDistance;
+                    this.scale = this.startScale * scaleFactor;
+
+                    // Rotation factor (around Y axis)
+                    let angleDiff = angle - this.touchStartAngle;
+                    this.rotationY = this.startRotationY + angleDiff;
+
+                    // Apply to entity
+                    this.el.setAttribute('scale', `${this.scale} ${this.scale} ${this.scale}`);
+                    this.el.setAttribute('rotation', `0 ${THREE.MathUtils.radToDeg(this.rotationY)} 0`);
+
+                    e.preventDefault();
+                }
+            },
+
+            onTouchEnd: function (e) {
+                if (e.touches.length < 2) {
+                    this.isPinching = false;
+                }
+            }
+        });
+    </script>
+
+    <!-- AR Scene with alpha: true for live camera background -->
     <a-scene embedded
              arjs="sourceType: webcam; detectionMode: mono; matrixCodeType: 3x3; debugUIEnabled: false; trackingMethod: best;"
              renderer="antialias: true; alpha: true;">
@@ -55,110 +116,111 @@
         <!-- Hiro marker – everything inside appears anchored to it -->
         <a-marker preset="hiro" id="solar-marker">
 
-            <!-- ========== LIGHTS ========== -->
+            <!-- Lights (remain fixed at marker origin) -->
             <a-light type="ambient" color="#ffffff" intensity="0.3"></a-light>
             <a-light type="point" intensity="1.5" position="0 0 0" color="#ffaa00"></a-light>
 
-            <!-- ========== SUN ========== -->
-            <a-sphere radius="0.25" position="0 0 0"
-                      material="src: url(images/sun.jpg); emissive: #ff5500;"></a-sphere>
+            <!-- ========== SOLAR SYSTEM (scalable / rotatable) ========== -->
+            <a-entity id="solar-system" gesture-handler>
 
-            <!-- ========== MERCURY ========== -->
-            <a-entity rotation="0 0 0" id="mercury-orbit">
-                <a-ring radius="0.5" radius-tubular="0.002" color="#aaa"
-                        material="transparent: true; opacity: 0.3"
-                        rotation="90 0 0"></a-ring>
-                <a-sphere radius="0.05" material="src: url(images/mercury.jpg);" position="0.5 0 0"></a-sphere>
-                <a-animation attribute="rotation" to="0 360 0" dur="5000" easing="linear" repeat="indefinite"></a-animation>
-            </a-entity>
+                <!-- SUN -->
+                <a-sphere radius="0.25" position="0 0 0"
+                          material="src: url(images/sun.jpg); emissive: #ff5500;"></a-sphere>
 
-            <!-- ========== VENUS ========== -->
-            <a-entity rotation="0 60 0" id="venus-orbit">
-                <a-ring radius="0.7" radius-tubular="0.002" color="#f90"
-                        material="transparent: true; opacity: 0.3"
-                        rotation="90 0 0"></a-ring>
-                <a-sphere radius="0.06" material="src: url(images/venus.jpg);" position="0.7 0 0"></a-sphere>
-                <a-animation attribute="rotation" to="0 360 0" dur="7000" easing="linear" repeat="indefinite"></a-animation>
-            </a-entity>
+                <!-- MERCURY -->
+                <a-entity rotation="0 0 0" id="mercury-orbit">
+                    <a-ring radius="0.5" radius-tubular="0.002" color="#aaa"
+                            material="transparent: true; opacity: 0.3"
+                            rotation="90 0 0"></a-ring>
+                    <a-sphere radius="0.05" material="src: url(images/mercury.jpg);" position="0.5 0 0"></a-sphere>
+                    <a-animation attribute="rotation" to="0 360 0" dur="5000" easing="linear" repeat="indefinite"></a-animation>
+                </a-entity>
 
-            <!-- ========== EARTH ========== -->
-            <a-entity rotation="0 120 0" id="earth-orbit">
-                <a-ring radius="0.9" radius-tubular="0.002" color="#2a7fff"
-                        material="transparent: true; opacity: 0.3"
-                        rotation="90 0 0"></a-ring>
-                <a-sphere radius="0.065" material="src: url(images/earth.jpg);" position="0.9 0 0"></a-sphere>
-                <a-animation attribute="rotation" to="0 360 0" dur="9000" easing="linear" repeat="indefinite"></a-animation>
-            </a-entity>
+                <!-- VENUS -->
+                <a-entity rotation="0 60 0" id="venus-orbit">
+                    <a-ring radius="0.7" radius-tubular="0.002" color="#f90"
+                            material="transparent: true; opacity: 0.3"
+                            rotation="90 0 0"></a-ring>
+                    <a-sphere radius="0.06" material="src: url(images/venus.jpg);" position="0.7 0 0"></a-sphere>
+                    <a-animation attribute="rotation" to="0 360 0" dur="7000" easing="linear" repeat="indefinite"></a-animation>
+                </a-entity>
 
-            <!-- ========== MARS ========== -->
-            <a-entity rotation="0 180 0" id="mars-orbit">
-                <a-ring radius="1.1" radius-tubular="0.002" color="#c1440e"
-                        material="transparent: true; opacity: 0.3"
-                        rotation="90 0 0"></a-ring>
-                <a-sphere radius="0.055" material="src: url(images/mars.jpg);" position="1.1 0 0"></a-sphere>
-                <a-animation attribute="rotation" to="0 360 0" dur="11000" easing="linear" repeat="indefinite"></a-animation>
-            </a-entity>
+                <!-- EARTH -->
+                <a-entity rotation="0 120 0" id="earth-orbit">
+                    <a-ring radius="0.9" radius-tubular="0.002" color="#2a7fff"
+                            material="transparent: true; opacity: 0.3"
+                            rotation="90 0 0"></a-ring>
+                    <a-sphere radius="0.065" material="src: url(images/earth.jpg);" position="0.9 0 0"></a-sphere>
+                    <a-animation attribute="rotation" to="0 360 0" dur="9000" easing="linear" repeat="indefinite"></a-animation>
+                </a-entity>
 
-            <!-- ========== JUPITER ========== -->
-            <a-entity rotation="0 240 0" id="jupiter-orbit">
-                <a-ring radius="1.4" radius-tubular="0.005" color="#d8a27a"
-                        material="transparent: true; opacity: 0.3"
-                        rotation="90 0 0"></a-ring>
-                <a-sphere radius="0.12" material="src: url(images/jupiter.jpg);" position="1.4 0 0"></a-sphere>
-                <a-animation attribute="rotation" to="0 360 0" dur="14000" easing="linear" repeat="indefinite"></a-animation>
-            </a-entity>
+                <!-- MARS -->
+                <a-entity rotation="0 180 0" id="mars-orbit">
+                    <a-ring radius="1.1" radius-tubular="0.002" color="#c1440e"
+                            material="transparent: true; opacity: 0.3"
+                            rotation="90 0 0"></a-ring>
+                    <a-sphere radius="0.055" material="src: url(images/mars.jpg);" position="1.1 0 0"></a-sphere>
+                    <a-animation attribute="rotation" to="0 360 0" dur="11000" easing="linear" repeat="indefinite"></a-animation>
+                </a-entity>
 
-            <!-- ========== SATURN (with ring) ========== -->
-            <a-entity rotation="0 300 0" id="saturn-orbit">
-                <a-ring radius="1.7" radius-tubular="0.005" color="#e0bb87"
-                        material="transparent: true; opacity: 0.3"
-                        rotation="90 0 0"></a-ring>
-                <!-- Saturn sphere -->
-                <a-sphere radius="0.1" material="src: url(images/saturn.jpg);" position="1.7 0 0"></a-sphere>
-                <!-- Ring (flat with texture) -->
-                <a-ring radius-inner="0.15" radius-outer="0.25"
-                        material="src: url(images/saturn_ring.png); transparent: true; side: double;"
-                        rotation="90 0 0" position="1.7 0 0"></a-ring>
-                <a-animation attribute="rotation" to="0 360 0" dur="17000" easing="linear" repeat="indefinite"></a-animation>
-            </a-entity>
+                <!-- JUPITER -->
+                <a-entity rotation="0 240 0" id="jupiter-orbit">
+                    <a-ring radius="1.4" radius-tubular="0.005" color="#d8a27a"
+                            material="transparent: true; opacity: 0.3"
+                            rotation="90 0 0"></a-ring>
+                    <a-sphere radius="0.12" material="src: url(images/jupiter.jpg);" position="1.4 0 0"></a-sphere>
+                    <a-animation attribute="rotation" to="0 360 0" dur="14000" easing="linear" repeat="indefinite"></a-animation>
+                </a-entity>
 
-            <!-- ========== URANUS (with ring) ========== -->
-            <a-entity rotation="0 30 0" id="uranus-orbit">
-                <a-ring radius="2.0" radius-tubular="0.005" color="#7ec8e0"
-                        material="transparent: true; opacity: 0.3"
-                        rotation="90 0 0"></a-ring>
-                <a-sphere radius="0.08" material="src: url(images/uranus.jpg);" position="2.0 0 0"></a-sphere>
-                <!-- Uranus ring -->
-                <a-ring radius-inner="0.12" radius-outer="0.2"
-                        material="src: url(images/uranus_ring.png); transparent: true; side: double; opacity:0.8"
-                        rotation="90 0 0" position="2.0 0 0"></a-ring>
-                <a-animation attribute="rotation" to="0 360 0" dur="20000" easing="linear" repeat="indefinite"></a-animation>
-            </a-entity>
+                <!-- SATURN (with ring) -->
+                <a-entity rotation="0 300 0" id="saturn-orbit">
+                    <a-ring radius="1.7" radius-tubular="0.005" color="#e0bb87"
+                            material="transparent: true; opacity: 0.3"
+                            rotation="90 0 0"></a-ring>
+                    <a-sphere radius="0.1" material="src: url(images/saturn.jpg);" position="1.7 0 0"></a-sphere>
+                    <a-ring radius-inner="0.15" radius-outer="0.25"
+                            material="src: url(images/saturn_ring.png); transparent: true; side: double;"
+                            rotation="90 0 0" position="1.7 0 0"></a-ring>
+                    <a-animation attribute="rotation" to="0 360 0" dur="17000" easing="linear" repeat="indefinite"></a-animation>
+                </a-entity>
 
-            <!-- ========== NEPTUNE ========== -->
-            <a-entity rotation="0 150 0" id="neptune-orbit">
-                <a-ring radius="2.3" radius-tubular="0.005" color="#4b70dd"
-                        material="transparent: true; opacity: 0.3"
-                        rotation="90 0 0"></a-ring>
-                <a-sphere radius="0.08" material="src: url(images/neptune.jpg);" position="2.3 0 0"></a-sphere>
-                <a-animation attribute="rotation" to="0 360 0" dur="23000" easing="linear" repeat="indefinite"></a-animation>
-            </a-entity>
+                <!-- URANUS (with ring) -->
+                <a-entity rotation="0 30 0" id="uranus-orbit">
+                    <a-ring radius="2.0" radius-tubular="0.005" color="#7ec8e0"
+                            material="transparent: true; opacity: 0.3"
+                            rotation="90 0 0"></a-ring>
+                    <a-sphere radius="0.08" material="src: url(images/uranus.jpg);" position="2.0 0 0"></a-sphere>
+                    <a-ring radius-inner="0.12" radius-outer="0.2"
+                            material="src: url(images/uranus_ring.png); transparent: true; side: double; opacity:0.8"
+                            rotation="90 0 0" position="2.0 0 0"></a-ring>
+                    <a-animation attribute="rotation" to="0 360 0" dur="20000" easing="linear" repeat="indefinite"></a-animation>
+                </a-entity>
 
-            <!-- ========== BACKGROUND STARS ========== -->
-            <a-entity position="0 0 0">
-                <a-sphere radius="0.02" color="#fff" position="0.5 0.3 0.5"></a-sphere>
-                <a-sphere radius="0.02" color="#fff" position="-0.4 0.5 0.6"></a-sphere>
-                <a-sphere radius="0.02" color="#fff" position="0.3 -0.2 1.0"></a-sphere>
-                <a-sphere radius="0.02" color="#fff" position="-0.6 0.1 0.8"></a-sphere>
-                <a-sphere radius="0.02" color="#fff" position="0.8 0.4 -0.3"></a-sphere>
-                <a-sphere radius="0.02" color="#fff" position="-0.3 -0.4 1.2"></a-sphere>
-            </a-entity>
+                <!-- NEPTUNE -->
+                <a-entity rotation="0 150 0" id="neptune-orbit">
+                    <a-ring radius="2.3" radius-tubular="0.005" color="#4b70dd"
+                            material="transparent: true; opacity: 0.3"
+                            rotation="90 0 0"></a-ring>
+                    <a-sphere radius="0.08" material="src: url(images/neptune.jpg);" position="2.3 0 0"></a-sphere>
+                    <a-animation attribute="rotation" to="0 360 0" dur="23000" easing="linear" repeat="indefinite"></a-animation>
+                </a-entity>
 
+                <!-- BACKGROUND STARS (optional, they move with the system) -->
+                <a-entity position="0 0 0">
+                    <a-sphere radius="0.02" color="#fff" position="0.5 0.3 0.5"></a-sphere>
+                    <a-sphere radius="0.02" color="#fff" position="-0.4 0.5 0.6"></a-sphere>
+                    <a-sphere radius="0.02" color="#fff" position="0.3 -0.2 1.0"></a-sphere>
+                    <a-sphere radius="0.02" color="#fff" position="-0.6 0.1 0.8"></a-sphere>
+                    <a-sphere radius="0.02" color="#fff" position="0.8 0.4 -0.3"></a-sphere>
+                    <a-sphere radius="0.02" color="#fff" position="-0.3 -0.4 1.2"></a-sphere>
+                </a-entity>
+
+            </a-entity> <!-- end solar-system -->
         </a-marker>
     </a-scene>
 
     <script>
-        console.log('AR Solar System with your textures ready!');
+        console.log('AR Solar System with gesture zoom/rotate ready!');
     </script>
 </body>
 </html>
