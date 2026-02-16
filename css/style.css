@@ -1,0 +1,164 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: #0a0f1e;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+/* Glassmorphism effect */
+.glass {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 24px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.container {
+  padding: 2rem 3rem;
+  text-align: center;
+  max-width: 800px;
+  width: 90%;
+}
+
+.title {
+  font-size: 2.5rem;
+  margin-bottom: 2rem;
+  text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+}
+
+.menu {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1.5rem;
+}
+
+.menu-item {
+  display: inline-block;
+  padding: 1.2rem 2.5rem;
+  font-size: 1.5rem;
+  text-decoration: none;
+  color: white;
+  transition: transform 0.2s, background 0.2s;
+  min-width: 200px;
+}
+
+.menu-item:hover {
+  transform: translateY(-5px);
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Planet cards grid */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+
+.card {
+  padding: 1.5rem 1rem;
+  text-align: center;
+  cursor: pointer;
+  transition: transform 0.2s;
+  border-radius: 20px;
+}
+
+.card:hover {
+  transform: scale(1.05);
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.card img {
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 50%;
+  margin-bottom: 1rem;
+  border: 2px solid rgba(255,255,255,0.5);
+}
+
+.card h3 {
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.card p {
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+
+/* AR page layout */
+.ar-container {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+#ar-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.ui-overlay {
+  position: absolute;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 20px;
+  z-index: 10;
+}
+
+.control-btn {
+  padding: 12px 24px;
+  font-size: 1.2rem;
+  border: none;
+  border-radius: 40px;
+  background: rgba(0,0,0,0.6);
+  color: white;
+  backdrop-filter: blur(5px);
+  cursor: pointer;
+  border: 1px solid rgba(255,255,255,0.3);
+  transition: 0.2s;
+}
+
+.control-btn:hover {
+  background: rgba(255,255,255,0.2);
+}
+
+.back-btn {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  padding: 10px 20px;
+  background: rgba(0,0,0,0.6);
+  color: white;
+  text-decoration: none;
+  border-radius: 30px;
+  backdrop-filter: blur(5px);
+  z-index: 10;
+}
+
+.speak-btn {
+  background: #4a90e2;
+}
+
+.scale-info {
+  margin-top: 10px;
+  font-size: 1rem;
+  opacity: 0.9;
+}
