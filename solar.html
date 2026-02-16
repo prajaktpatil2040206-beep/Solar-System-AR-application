@@ -219,15 +219,7 @@
                             targetEl.object3D.scale.set(newScale, newScale, newScale);
                         }
 
-                        // Update start values for next move? For continuous two‑finger, we want to keep the initial reference fixed,
-                        // so we do NOT update startScale or startPosition here. The gesture is based on the initial touchstart.
-                        // But we do need to update startDistance so that the next move uses the new distance as baseline? No,
-                        // we keep the original startDistance to compute scaleFactor relative to the initial pinch.
-                        // However, if we want the zoom to feel continuous, we can update startDistance and startScale each frame,
-                        // but then the fixed‑point formula would need to also update the local point. The simpler and more robust
-                        // method is to keep the initial values and compute everything relative to them. This ensures the point
-                        // under the fingers stays fixed throughout the gesture.
-                        // So we do nothing here.
+                        // Keep start values unchanged for continuous fixed‑point behavior
                     }
                 }
 
@@ -268,8 +260,9 @@
                 <a-sphere radius="0.25" position="0 0 0"
                           material="src: url(images/sun.jpg); emissive: #ff6600; emissiveIntensity: 1.5;"></a-sphere>
 
-                <!-- MERCURY -->
-                <a-entity class="planet" position="0.5 0 0">
+                <!-- PLANETS – each with a random initial rotation so they are not all in a line -->
+                <!-- Mercury -->
+                <a-entity class="planet" position="0.5 0 0" rotation="0 0 0" id="planet-mercury">
                     <a-entity class="planet-spin" rotation="0 0 0">
                         <a-sphere radius="0.05" material="src: url(images/mercury.jpg);"></a-sphere>
                         <a-animation attribute="rotation" to="0 360 0" dur="4000" easing="linear" repeat="indefinite"></a-animation>
@@ -277,8 +270,8 @@
                     <a-animation attribute="rotation" to="0 360 0" dur="2000" easing="linear" repeat="indefinite"></a-animation>
                 </a-entity>
 
-                <!-- VENUS -->
-                <a-entity class="planet" position="0.7 0 0">
+                <!-- Venus -->
+                <a-entity class="planet" position="0.7 0 0" rotation="0 0 0" id="planet-venus">
                     <a-entity class="planet-spin" rotation="0 0 0">
                         <a-sphere radius="0.06" material="src: url(images/venus.jpg);"></a-sphere>
                         <a-animation attribute="rotation" to="0 360 0" dur="6000" easing="linear" repeat="indefinite"></a-animation>
@@ -286,8 +279,8 @@
                     <a-animation attribute="rotation" to="0 360 0" dur="3000" easing="linear" repeat="indefinite"></a-animation>
                 </a-entity>
 
-                <!-- EARTH -->
-                <a-entity class="planet" position="0.9 0 0">
+                <!-- Earth -->
+                <a-entity class="planet" position="0.9 0 0" rotation="0 0 0" id="planet-earth">
                     <a-entity class="planet-spin" rotation="0 0 0">
                         <a-sphere radius="0.065" material="src: url(images/earth.jpg);"></a-sphere>
                         <a-animation attribute="rotation" to="0 360 0" dur="8000" easing="linear" repeat="indefinite"></a-animation>
@@ -295,8 +288,8 @@
                     <a-animation attribute="rotation" to="0 360 0" dur="4000" easing="linear" repeat="indefinite"></a-animation>
                 </a-entity>
 
-                <!-- MARS -->
-                <a-entity class="planet" position="1.1 0 0">
+                <!-- Mars -->
+                <a-entity class="planet" position="1.1 0 0" rotation="0 0 0" id="planet-mars">
                     <a-entity class="planet-spin" rotation="0 0 0">
                         <a-sphere radius="0.055" material="src: url(images/mars.jpg);"></a-sphere>
                         <a-animation attribute="rotation" to="0 360 0" dur="9000" easing="linear" repeat="indefinite"></a-animation>
@@ -304,8 +297,8 @@
                     <a-animation attribute="rotation" to="0 360 0" dur="5000" easing="linear" repeat="indefinite"></a-animation>
                 </a-entity>
 
-                <!-- JUPITER -->
-                <a-entity class="planet" position="1.5 0 0">
+                <!-- Jupiter -->
+                <a-entity class="planet" position="1.5 0 0" rotation="0 0 0" id="planet-jupiter">
                     <a-entity class="planet-spin" rotation="0 0 0">
                         <a-sphere radius="0.12" material="src: url(images/jupiter.jpg);"></a-sphere>
                         <a-animation attribute="rotation" to="0 360 0" dur="10000" easing="linear" repeat="indefinite"></a-animation>
@@ -313,8 +306,8 @@
                     <a-animation attribute="rotation" to="0 360 0" dur="8000" easing="linear" repeat="indefinite"></a-animation>
                 </a-entity>
 
-                <!-- SATURN (with ring) -->
-                <a-entity class="planet" position="1.9 0 0">
+                <!-- Saturn (with ring) -->
+                <a-entity class="planet" position="1.9 0 0" rotation="0 0 0" id="planet-saturn">
                     <a-entity class="planet-spin" rotation="0 0 0">
                         <a-sphere radius="0.1" material="src: url(images/saturn.jpg);"></a-sphere>
                         <a-ring radius-inner="0.15" radius-outer="0.25"
@@ -325,8 +318,8 @@
                     <a-animation attribute="rotation" to="0 360 0" dur="10000" easing="linear" repeat="indefinite"></a-animation>
                 </a-entity>
 
-                <!-- URANUS (with ring) -->
-                <a-entity class="planet" position="2.3 0 0">
+                <!-- Uranus (with ring) -->
+                <a-entity class="planet" position="2.3 0 0" rotation="0 0 0" id="planet-uranus">
                     <a-entity class="planet-spin" rotation="0 0 0">
                         <a-sphere radius="0.08" material="src: url(images/uranus.jpg);"></a-sphere>
                         <a-ring radius-inner="0.12" radius-outer="0.2"
@@ -337,8 +330,8 @@
                     <a-animation attribute="rotation" to="0 360 0" dur="14000" easing="linear" repeat="indefinite"></a-animation>
                 </a-entity>
 
-                <!-- NEPTUNE -->
-                <a-entity class="planet" position="2.7 0 0">
+                <!-- Neptune -->
+                <a-entity class="planet" position="2.7 0 0" rotation="0 0 0" id="planet-neptune">
                     <a-entity class="planet-spin" rotation="0 0 0">
                         <a-sphere radius="0.08" material="src: url(images/neptune.jpg);"></a-sphere>
                         <a-animation attribute="rotation" to="0 360 0" dur="13000" easing="linear" repeat="indefinite"></a-animation>
@@ -359,14 +352,31 @@
         </a-marker>
     </a-scene>
 
+    <!-- Script to randomize planet starting positions and handle marker events -->
     <script>
-        const marker = document.getElementById('solar-marker');
-        marker.addEventListener('markerFound', () => {
-            document.querySelector('.info').innerHTML = '✅ Marker FOUND! Solar system visible.';
-        });
-        marker.addEventListener('markerLost', () => {
-            document.querySelector('.info').innerHTML = '❌ Marker lost – show HIRO to camera';
-        });
+        (function() {
+            // Randomize initial rotation of each planet so they are not all in a line
+            const planetIds = [
+                'planet-mercury', 'planet-venus', 'planet-earth', 'planet-mars',
+                'planet-jupiter', 'planet-saturn', 'planet-uranus', 'planet-neptune'
+            ];
+            planetIds.forEach(id => {
+                const planet = document.getElementById(id);
+                if (planet) {
+                    const randomAngle = Math.random() * 360;
+                    planet.setAttribute('rotation', `0 ${randomAngle} 0`);
+                }
+            });
+
+            // Marker event handlers
+            const marker = document.getElementById('solar-marker');
+            marker.addEventListener('markerFound', () => {
+                document.querySelector('.info').innerHTML = '✅ Marker FOUND! Solar system visible.';
+            });
+            marker.addEventListener('markerLost', () => {
+                document.querySelector('.info').innerHTML = '❌ Marker lost – show HIRO to camera';
+            });
+        })();
     </script>
     <script src="ai-chatbot.js"></script>
 </body>
