@@ -72,12 +72,11 @@ const scene = new THREE.Scene();
 const camera = new THREE.Camera();
 camera.matrixAutoUpdate = false;
 
-// --- AR.js setup with our video element ---
+// --- AR.js setup with our video element (using default camera parameters) ---
 const arController = new THREEx.ArController(renderer, camera, canvas);
-// Create a custom source using our video element
+// Create a custom source using our video element – no cameraParamUrl, so defaults are used
 arController.source = new THREEx.ArSource('custom', {
-  videoElement: video,
-  cameraParamUrl: 'data/camera_para.dat'
+  videoElement: video
 });
 
 // Configure marker detection
