@@ -14,55 +14,72 @@ const planetData = {
   neptune: { name:'Neptune', size:1.1, texture:'neptune.jpg', info:'Neptune is deep blue and has the strongest winds in the solar system.' }
 }[planetName];
 
-// Setup renderer
-const canvas = document.getElementById('ar-canvas');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(window.devicePixelRatio);
-
-const scene = new THREE.Scene();
-// We'll set the background later once the video is ready
-
-const camera = new THREE.Camera();
-camera.matrixAutoUpdate = false;
-
-// --- AR.js setup ---
-const arController = new THREEx.ArController(renderer, camera, canvas);
-// Create video source for webcam
-arController.source = new THREEx.ArSource('webcam', {
-  cameraParamUrl: 'data/camera_para.dat'  // Ensure this file exists
-});
-
-// Get the video element created by ArSource
-const video = arController.source.domElement;
+// --- Setup camera video element manually ---
+const video = document.createElement('video');
 video.setAttribute('playsinline', '');
-video.style.position = 'absolute';
+video.setAttribute('autoplay', '');
+video.setAttribute('muted', '');
+video.style.position = 'fixed';
 video.style.top = '0';
 video.style.left = '0';
 video.style.width = '100%';
 video.style.height = '100%';
 video.style.objectFit = 'cover';
-video.style.zIndex = '-1';  // Place behind canvas
-document.body.appendChild(video);  // Add to DOM to ensure it plays
+video.style.zIndex = '-1'; // Behind the canvas
+document.body.appendChild(video);
 
-// Once video is ready, set as scene background
-video.addEventListener('loadeddata', () => {
-  const videoTexture = new THREE.VideoTexture(video);
-  videoTexture.minFilter = THREE.LinearFilter;
-  videoTexture.magFilter = THREE.LinearFilter;
-  videoTexture.format = THREE.RGBAFormat;
-  scene.background = videoTexture;
+// Request camera access
+navigator.mediaDevices.getUserMedia({ video: true })
+  .then(stream => {
+    video.srcObject = stream;
+    video.play().catch(e => console.warn('Auto-play failed:', e));
+  })
+  .catch(err => {
+    console.error('Camera access denied:', err);
+    // Fallback: show a message or a color
+    video.style.backgroundColor = '#111';
+    const msg = document.createElement('div');
+    msg.innerText = 'Camera access required for AR. Please allow camera.';
+    msg.style.position = 'fixed';
+    msg.style.top = '50%';
+    msg.style.left = '50%';
+    msg.style.transform = 'translate(-50%, -50%)';
+    msg.style.color = 'white';
+    msg.style.background = 'rgba(0,0,0,0.7)';
+    msg.style.padding = '1rem';
+    msg.style.borderRadius = '8px';
+    msg.style.zIndex = '0';
+    document.body.appendChild(msg);
+  });
+
+// --- Setup Three.js renderer (transparent) ---
+const canvas = document.getElementById('ar-canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setClearColor(0x000000, 0); // transparent
+
+const scene = new THREE.Scene();
+const camera = new THREE.Camera();
+camera.matrixAutoUpdate = false;
+
+// --- AR.js setup with our video element ---
+const arController = new THREEx.ArController(renderer, camera, canvas);
+// Create a custom source using our video element
+arController.source = new THREEx.ArSource('custom', {
+  videoElement: video,
+  cameraParamUrl: 'data/camera_para.dat'
 });
 
-// Configure AR detection
+// Configure marker detection
 arController.context.arController.setPatternDetectionMode(artoolkit.AR_MATRIX_CODE_DETECTION);
 arController.setPatternDetectionMode(artoolkit.AR_TEMPLATE_MATCHING_COLOR);
 
-// Load Hiro marker pattern (you can also use a different pattern)
-arController.loadMarker('data/hiro.patt', (markerId) => {
+// Load Hiro pattern
+arController.loadMarker('data/hiro.patt', markerId => {
   arController.trackMarker(markerId, {
-    onAdded: (marker) => createContent(marker),
-    onUpdated: (marker) => updateContent(marker),
+    onAdded: marker => createContent(marker),
+    onUpdated: marker => updateContent(marker),
     onRemoved: () => removeContent()
   });
 });
@@ -79,14 +96,16 @@ function createContent(marker) {
   const geo = new THREE.SphereGeometry(planetData.size, 32, 32);
   const mat = new THREE.MeshStandardMaterial({ map: texture });
   planetMesh = new THREE.Mesh(geo, mat);
-  planetMesh.position.set(0, planetData.size / 2, 0); // sit on marker plane
+  planetMesh.position.set(0, planetData.size / 2, 0);
+  planetMesh.castShadow = true;
+  planetMesh.receiveShadow = true;
 
-  // Add a subtle ambient light and a point light to illuminate the planet
+  // Add a light to make the planet visible
   const light = new THREE.PointLight(0xffffff, 1);
   light.position.set(2, 5, 5);
   marker.add(light);
 
-  // Info card (3D plane with canvas texture)
+  // Info card (canvas texture)
   const canvasElem = document.createElement('canvas');
   canvasElem.width = 512;
   canvasElem.height = 256;
@@ -111,7 +130,7 @@ function createContent(marker) {
   const cardGeo = new THREE.PlaneGeometry(4, 2);
   const cardMat = new THREE.MeshBasicMaterial({ map: cardTexture, side: THREE.DoubleSide, transparent: true });
   cardMesh = new THREE.Mesh(cardGeo, cardMat);
-  cardMesh.position.set(2.5, 1, 0); // to the side of planet
+  cardMesh.position.set(2.5, 1, 0); // side by side
   cardMesh.scale.set(cardScale, cardScale, cardScale);
 
   marker.add(planetMesh);
@@ -128,7 +147,6 @@ function removeContent() {
   planetMesh = cardMesh = null;
 }
 
-// Helper for text wrapping
 function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
   const words = text.split(' ');
   let line = '';
@@ -165,14 +183,12 @@ document.getElementById('zoom-out').addEventListener('click', () => {
   document.getElementById('scale-display').innerText = `Card scale: ${cardScale.toFixed(1)}`;
 });
 
-// Resize handling
 window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-// Animation loop
 function animate() {
-  if (arController) arController.process();  // Process marker detection
+  if (arController) arController.process();
   renderer.render(scene, camera);
   requestAnimationFrame(animate);
 }
