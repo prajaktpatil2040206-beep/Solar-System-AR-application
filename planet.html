@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>AR Planet Explorer</title>
+    <title>AR Planet Explorer with Moons</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <!-- A-Frame and AR.js -->
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
@@ -15,7 +15,7 @@
             bottom: 20px;
             left: 20px;
             right: 20px;
-            background: rgba(10, 20, 30, 0.85);
+            background: rgba(10, 20, 30, 0.9);
             backdrop-filter: blur(10px);
             color: white;
             padding: 20px;
@@ -26,15 +26,43 @@
             max-width: 500px;
             margin: 0 auto;
             pointer-events: auto;
+            transition: transform 0.3s, opacity 0.3s;
+        }
+        #info-panel.hidden {
+            transform: translateY(120%);
+            opacity: 0;
+            pointer-events: none;
         }
         #info-panel h2 {
             margin: 0 0 10px;
             font-size: 2rem;
             text-shadow: 0 0 10px cyan;
+            padding-right: 30px;
         }
         #info-panel p {
             margin: 8px 0;
             font-size: 1.1rem;
+        }
+        .close-btn {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            font-size: 1.8rem;
+            cursor: pointer;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+            transition: 0.2s;
+        }
+        .close-btn:hover {
+            background: rgba(255,255,255,0.4);
         }
         .read-btn {
             background: #2a4a7a;
@@ -52,6 +80,27 @@
         .read-btn:hover {
             background: #3a6ea5;
             box-shadow: 0 0 15px cyan;
+        }
+        #toggle-info {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(10, 20, 30, 0.9);
+            backdrop-filter: blur(10px);
+            color: white;
+            border: 2px solid #3a6ea5;
+            border-radius: 60px;
+            padding: 12px 30px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            z-index: 1001;
+            box-shadow: 0 0 20px cyan;
+            display: none;
+            transition: 0.2s;
+        }
+        #toggle-info:hover {
+            background: #2a4a7a;
         }
         .back-btn {
             position: absolute;
@@ -83,11 +132,14 @@
     <a href="planets.html" class="back-btn">← Planets</a>
     <div class="debug-hint" id="debug-status">Waiting for marker...</div>
 
-    <!-- Gesture handler (same as before) -->
+    <!-- Toggle button (visible when panel hidden) -->
+    <button id="toggle-info">🌍 Show Planet Info</button>
+
+    <!-- Gesture handler (full 3D rotation & zoom) -->
     <script>
         AFRAME.registerComponent('gesture-control', {
             init: function () {
-                const targetEl = document.getElementById('planet-obj');
+                const targetEl = document.getElementById('planet-system');
                 if (!targetEl) return;
 
                 const THREE = AFRAME.THREE;
@@ -197,8 +249,8 @@
             <a-light type="ambient" color="#ffffff" intensity="0.3"></a-light>
             <a-light type="point" intensity="2" position="0 0 0" color="#ffaa00"></a-light>
 
-            <!-- Planet container (will be filled by JS) -->
-            <a-entity id="planet-obj"></a-entity>
+            <!-- Planet system container (planet + moons) -->
+            <a-entity id="planet-system"></a-entity>
         </a-marker>
     </a-scene>
 
@@ -209,10 +261,11 @@
         (function() {
             const debug = document.getElementById('debug-status');
             const marker = document.getElementById('planet-marker');
-            const planetObj = document.getElementById('planet-obj');
+            const planetSystem = document.getElementById('planet-system');
             const infoPanel = document.getElementById('info-panel');
+            const toggleBtn = document.getElementById('toggle-info');
 
-            // Planet data
+            // Planet data with moons
             const planetData = {
                 mercury: {
                     name: 'Mercury',
@@ -222,7 +275,8 @@
                     yearLength: '88 Earth days',
                     moons: 0,
                     texture: 'mercury.jpg',
-                    ring: false
+                    ring: false,
+                    moonList: []
                 },
                 venus: {
                     name: 'Venus',
@@ -232,7 +286,8 @@
                     yearLength: '225 Earth days',
                     moons: 0,
                     texture: 'venus.jpg',
-                    ring: false
+                    ring: false,
+                    moonList: []
                 },
                 earth: {
                     name: 'Earth',
@@ -242,7 +297,10 @@
                     yearLength: '365 days',
                     moons: 1,
                     texture: 'earth.jpg',
-                    ring: false
+                    ring: false,
+                    moonList: [
+                        { name: 'Luna', radius: 0.06, distance: 0.45, color: '#ccc', speed: 3000 }
+                    ]
                 },
                 mars: {
                     name: 'Mars',
@@ -252,7 +310,11 @@
                     yearLength: '687 Earth days',
                     moons: 2,
                     texture: 'mars.jpg',
-                    ring: false
+                    ring: false,
+                    moonList: [
+                        { name: 'Phobos', radius: 0.04, distance: 0.4, color: '#a52a2a', speed: 2000 },
+                        { name: 'Deimos', radius: 0.03, distance: 0.55, color: '#8b4513', speed: 4000 }
+                    ]
                 },
                 jupiter: {
                     name: 'Jupiter',
@@ -262,7 +324,14 @@
                     yearLength: '11.9 Earth years',
                     moons: 79,
                     texture: 'jupiter.jpg',
-                    ring: false
+                    ring: false,
+                    // Show 4 Galilean moons
+                    moonList: [
+                        { name: 'Io', radius: 0.07, distance: 0.5, color: '#ffa500', speed: 2000 },
+                        { name: 'Europa', radius: 0.06, distance: 0.65, color: '#c0c0c0', speed: 3000 },
+                        { name: 'Ganymede', radius: 0.08, distance: 0.8, color: '#a9a9a9', speed: 4000 },
+                        { name: 'Callisto', radius: 0.07, distance: 0.95, color: '#696969', speed: 5000 }
+                    ]
                 },
                 saturn: {
                     name: 'Saturn',
@@ -273,7 +342,12 @@
                     moons: 82,
                     texture: 'saturn.jpg',
                     ring: true,
-                    ringTexture: 'saturn_ring.png'
+                    ringTexture: 'saturn_ring.png',
+                    moonList: [
+                        { name: 'Titan', radius: 0.09, distance: 0.7, color: '#ffd700', speed: 3500 },
+                        { name: 'Rhea', radius: 0.06, distance: 0.9, color: '#d3d3d3', speed: 4500 },
+                        { name: 'Dione', radius: 0.05, distance: 1.1, color: '#b0c4de', speed: 5500 }
+                    ]
                 },
                 uranus: {
                     name: 'Uranus',
@@ -284,7 +358,11 @@
                     moons: 27,
                     texture: 'uranus.jpg',
                     ring: true,
-                    ringTexture: 'uranus_ring.png'
+                    ringTexture: 'uranus_ring.png',
+                    moonList: [
+                        { name: 'Titania', radius: 0.06, distance: 0.65, color: '#e6e6fa', speed: 4000 },
+                        { name: 'Oberon', radius: 0.06, distance: 0.85, color: '#b0e0e6', speed: 5000 }
+                    ]
                 },
                 neptune: {
                     name: 'Neptune',
@@ -294,7 +372,10 @@
                     yearLength: '165 Earth years',
                     moons: 14,
                     texture: 'neptune.jpg',
-                    ring: false
+                    ring: false,
+                    moonList: [
+                        { name: 'Triton', radius: 0.07, distance: 0.6, color: '#4682b4', speed: 3500 }
+                    ]
                 }
             };
 
@@ -308,16 +389,19 @@
                 return;
             }
 
-            // Build the planet AR object
-            const spinDur = 8000; // ms for one full rotation
+            // Create the planet system container
+            const systemEl = document.createElement('a-entity');
+            systemEl.setAttribute('id', 'planet-system-inner');
+
+            // --- Planet ---
             const planetEntity = document.createElement('a-entity');
             planetEntity.setAttribute('position', '0 0 0');
 
-            // Sphere
+            // Planet sphere
             const sphere = document.createElement('a-sphere');
             sphere.setAttribute('radius', '0.25');
             sphere.setAttribute('material', `src: url(images/${data.texture});`);
-            sphere.setAttribute('animation', `property: rotation; to: 0 360 0; dur: ${spinDur}; easing: linear; repeat: indefinite`);
+            sphere.setAttribute('animation', `property: rotation; to: 0 360 0; dur: 8000; easing: linear; repeat: indefinite`);
             planetEntity.appendChild(sphere);
 
             // Add ring if needed
@@ -328,22 +412,68 @@
                 ring.setAttribute('material', `src: url(images/${data.ringTexture}); transparent: true; side: double;`);
                 ring.setAttribute('rotation', '90 0 0');
                 ring.setAttribute('position', '0 0 0');
-                // Ring inherits the planet's spin, so we don't need a separate animation
                 planetEntity.appendChild(ring);
             }
 
-            planetObj.appendChild(planetEntity);
+            systemEl.appendChild(planetEntity);
+
+            // --- Moons ---
+            data.moonList.forEach(moon => {
+                const moonOrbit = document.createElement('a-entity');
+                moonOrbit.setAttribute('position', '0 0 0');
+                // Orbit animation around planet (Y axis)
+                moonOrbit.setAttribute('animation', `property: rotation; to: 0 360 0; dur: ${moon.speed * 2}; easing: linear; repeat: indefinite`);
+
+                const moonSphere = document.createElement('a-sphere');
+                moonSphere.setAttribute('radius', moon.radius);
+                moonSphere.setAttribute('material', `color: ${moon.color}`);
+                moonSphere.setAttribute('position', `${moon.distance} 0 0`);
+                // Moon also spins on its own axis (optional)
+                moonSphere.setAttribute('animation', `property: rotation; to: 0 360 0; dur: 4000; easing: linear; repeat: indefinite`);
+
+                moonOrbit.appendChild(moonSphere);
+                systemEl.appendChild(moonOrbit);
+            });
+
+            // Add some stars around (decorative)
+            const stars = document.createElement('a-entity');
+            stars.setAttribute('position', '0 0 0');
+            for (let i = 0; i < 10; i++) {
+                const star = document.createElement('a-sphere');
+                star.setAttribute('radius', '0.02');
+                star.setAttribute('color', '#fff');
+                const angle = (i / 10) * Math.PI * 2;
+                const rad = 1.5;
+                star.setAttribute('position', `${Math.cos(angle)*rad} ${Math.sin(angle)*0.5} ${Math.sin(angle)*rad}`);
+                stars.appendChild(star);
+            }
+            systemEl.appendChild(stars);
+
+            planetSystem.appendChild(systemEl);
 
             // Build info panel
             infoPanel.innerHTML = `
+                <button class="close-btn" id="closePanel">✕</button>
                 <h2>${data.name}</h2>
                 <p><strong>Diameter:</strong> ${data.diameter}</p>
                 <p><strong>Distance from Sun:</strong> ${data.distance}</p>
                 <p><strong>Day length:</strong> ${data.dayLength}</p>
                 <p><strong>Year length:</strong> ${data.yearLength}</p>
-                <p><strong>Moons:</strong> ${data.moons}</p>
+                <p><strong>Moons:</strong> ${data.moons} (${data.moonList.length} shown in AR)</p>
                 <button class="read-btn" id="readBtn">🔊 Read Aloud</button>
             `;
+
+            // Close panel functionality
+            document.getElementById('closePanel').addEventListener('click', () => {
+                infoPanel.classList.add('hidden');
+                toggleBtn.style.display = 'block';
+            });
+
+            // Toggle button to reopen
+            toggleBtn.addEventListener('click', () => {
+                infoPanel.classList.remove('hidden');
+                toggleBtn.style.display = 'none';
+            });
 
             // Text-to-speech
             document.getElementById('readBtn').addEventListener('click', () => {
