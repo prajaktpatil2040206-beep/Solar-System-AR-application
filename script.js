@@ -2,7 +2,25 @@
 import * as THREE from "https://unpkg.com/three@0.127.0/build/three.module.js";
 import { OrbitControls } from "https://unpkg.com/three@0.127.0/examples/jsm/controls/OrbitControls.js";
 
-// Create WebGL renderer and add it to the page
+// --- LIVE CAMERA BACKGROUND SETUP ---
+// Create a video element and stream webcam into it
+const video = document.createElement('video');
+video.autoplay = true;
+video.muted = true; // required for autoplay in some browsers
+video.playsInline = true;
+
+// Request webcam access
+navigator.mediaDevices.getUserMedia({ video: true })
+  .then(stream => {
+    video.srcObject = stream;
+    video.play();
+  })
+  .catch(err => {
+    console.error('Camera access denied or not available. Using fallback color background.', err);
+    // fallback: set a color background later in the code
+  });
+
+// --- RENDERER ---
 const renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
@@ -33,13 +51,15 @@ const uranusRingTexture = textureLoader.load('images/uranus_ring.png');
 // Create the scene
 const scene = new THREE.Scene();
 
-// Set cube texture background (skybox effect)
-const cubeTextureLoader = new THREE.CubeTextureLoader();
-const cubeTexture = cubeTextureLoader.setPath('images/').load([
-  'stars.jpg', 'stars.jpg', 'stars.jpg',
-  'stars.jpg', 'stars.jpg', 'stars.jpg'
-]);
-scene.background = cubeTexture;
+// Set background to video texture if camera available, else a dark color
+const videoTexture = new THREE.VideoTexture(video);
+// We'll assign background after camera is ready; for now set a placeholder
+scene.background = new THREE.Color(0x111122);
+
+// Once video metadata is loaded, switch to video texture
+video.addEventListener('loadeddata', () => {
+  scene.background = videoTexture;
+});
 
 // Set up the camera (field of view, aspect ratio, near/far)
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -147,23 +167,21 @@ window.addEventListener("mousemove", (e) => {
 
 // dat.GUI controls
 const gui = new dat.GUI();
-scene.background = options["Dark Mode"] ? cubeTexture : new THREE.Color("#f0f0f0");
 
-// GUI toggles
-const maxSpeed = new URL(window.location.href).searchParams.get("ms") * 1;
+// Dark Mode now only affects path colors and tooltip, not background
 gui.add(options, "Real view").onChange(e => ambientLight.intensity = e ? 0 : 0.5);
 gui.add(options, "Show path").onChange(e => path_of_planets.forEach(path => path.visible = e));
 gui.add(options, "isPaused").name("Pause Animation");
 gui.add(options, "Dark Mode").onChange((isDark) => {
-  scene.background = isDark ? cubeTexture : new THREE.Color("#f0f0f0");
-  document.body.style.backgroundColor = isDark ? "#000" : "#fff";
-  tooltip.style.color = isDark ? "white" : "black";
-  tooltip.style.background = isDark ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.8)";
+  // Update path colors
   path_of_planets.forEach(p => scene.remove(p));
   path_of_planets.length = 0;
   planets.forEach(({ planetObj }) => createLineLoopWithMesh(planetObj.children[0].position.x, isDark, 3));
+  // Update tooltip style
+  tooltip.style.color = isDark ? "white" : "black";
+  tooltip.style.background = isDark ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.8)";
 });
-gui.add(options, "speed", 0, maxSpeed || 20);
+gui.add(options, "speed", 0, (new URL(window.location.href).searchParams.get("ms") * 1) || 20);
 
 // Add speed folders per planet
 planets.forEach(({ name, speedData }) => {
@@ -203,6 +221,8 @@ function animate() {
   } else {
     tooltip.style.display = "none";
   }
+
+  // Ensure video texture updates (happens automatically)
   orbit.update();
   renderer.render(scene, camera);
   requestAnimationFrame(animate);
