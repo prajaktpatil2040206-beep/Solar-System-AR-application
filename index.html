@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>AR Solar System – Fixed</title>
+    <title>AR Solar System – Live Camera + Gestures</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <!-- A-Frame and AR.js -->
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
@@ -10,7 +10,8 @@
 
     <style>
         body { margin: 0; overflow: hidden; }
-        a-scene canvas { touch-action: none; } /* Prevent page zoom on touch */
+        /* Disable browser zoom/scroll on canvas */
+        a-scene canvas { touch-action: none; }
         .info {
             position: absolute;
             bottom: 20px;
@@ -39,7 +40,7 @@
             font-size: 12px;
             z-index: 1000;
         }
-        .debug {
+        #debug-status {
             position: absolute;
             top: 50px;
             left: 10px;
@@ -54,150 +55,120 @@
     </style>
 </head>
 <body>
-    <div class="info">🔵 Point at HIRO marker – use two fingers to zoom/rotate</div>
-    <div class="hint">📐 Pinch to scale • Two-finger drag to rotate</div>
-    <div class="debug" id="debug">Status: initializing...</div>
+    <div class="info">🔵 Point camera at <strong>HIRO marker</strong></div>
+    <div class="hint">📐 Two fingers: pinch to zoom, drag to rotate</div>
+    <div id="debug-status">Initializing AR...</div>
 
-    <!-- Gesture handler (robust) -->
+    <!-- Gesture handler component (robust) -->
     <script>
         AFRAME.registerComponent('gesture-control', {
             init: function () {
-                const self = this;
-                const debugDiv = document.getElementById('debug');
-
-                // Wait for the solar-system entity
-                this.target = null;
-                const checkTarget = setInterval(() => {
-                    self.target = document.getElementById('solar-system');
-                    if (self.target) {
-                        clearInterval(checkTarget);
-                        debugDiv.innerHTML = 'Status: solar-system found, gestures active';
-                        self.initGestures();
-                    }
-                }, 500);
-
-                // Fallback if never found (shouldn't happen)
-                setTimeout(() => {
-                    if (!self.target) {
-                        debugDiv.innerHTML = 'Error: solar-system not found!';
-                    }
-                }, 5000);
-            },
-
-            initGestures: function () {
-                const target = this.target;
-                const debugDiv = document.getElementById('debug');
+                const targetEl = document.getElementById('solar-system');
+                if (!targetEl) {
+                    document.getElementById('debug-status').innerText = 'Error: solar-system not found';
+                    return;
+                }
 
                 // State
-                this.scale = 1;
-                this.rotation = { x: 0, y: 0, z: 0 }; // degrees
-                this.touchStartDistance = 0;
-                this.touchStartRot = { x: 0, y: 0 };
-                this.isPinching = false;
-
-                // Use THREE from A-Frame
-                const THREE = AFRAME.THREE;
-                const euler = new THREE.Euler();
-                const quat = new THREE.Quaternion();
+                let scale = 1;
+                let rotation = { x: 0, y: 0, z: 0 };
+                let touchStartDistance = 0;
+                let touchStartRot = { x: 0, y: 0, z: 0 };
+                let touchStartScale = 1;
+                let lastCenter = null;
+                let isPinching = false;
 
                 const canvas = this.el.canvas;
-                canvas.addEventListener('touchstart', this.onTouchStart.bind(this), { passive: false });
-                canvas.addEventListener('touchmove', this.onTouchMove.bind(this), { passive: false });
-                canvas.addEventListener('touchend', this.onTouchEnd.bind(this));
-                canvas.addEventListener('touchcancel', this.onTouchEnd.bind(this));
+                canvas.addEventListener('touchstart', onTouchStart, { passive: false });
+                canvas.addEventListener('touchmove', onTouchMove, { passive: false });
+                canvas.addEventListener('touchend', onTouchEnd);
+                canvas.addEventListener('touchcancel', onTouchEnd);
 
-                debugDiv.innerHTML = 'Status: gestures ready';
-            },
+                function onTouchStart(e) {
+                    if (e.touches.length === 2) {
+                        e.preventDefault();
+                        isPinching = true;
+                        const t1 = e.touches[0];
+                        const t2 = e.touches[1];
+                        const dx = t1.clientX - t2.clientX;
+                        const dy = t1.clientY - t2.clientY;
+                        touchStartDistance = Math.sqrt(dx * dx + dy * dy);
+                        // Store current rotation & scale
+                        const rot = targetEl.getAttribute('rotation');
+                        touchStartRot = { x: rot.x, y: rot.y, z: rot.z };
+                        touchStartScale = scale;
+                        lastCenter = {
+                            x: (t1.clientX + t2.clientX) / 2,
+                            y: (t1.clientY + t2.clientY) / 2
+                        };
+                    }
+                }
 
-            onTouchStart: function (e) {
-                if (e.touches.length === 2) {
+                function onTouchMove(e) {
+                    if (!isPinching || e.touches.length !== 2) return;
                     e.preventDefault();
-                    this.isPinching = true;
+
                     const t1 = e.touches[0];
                     const t2 = e.touches[1];
                     const dx = t1.clientX - t2.clientX;
                     const dy = t1.clientY - t2.clientY;
-                    this.touchStartDistance = Math.sqrt(dx * dx + dy * dy);
-                    // Store current rotation as start
-                    const rot = this.target.getAttribute('rotation');
-                    this.touchStartRot = { x: rot.x, y: rot.y, z: rot.z };
-                    this.touchStartScale = this.scale;
-                }
-            },
+                    const distance = Math.sqrt(dx * dx + dy * dy);
 
-            onTouchMove: function (e) {
-                if (!this.isPinching || e.touches.length !== 2) return;
-                e.preventDefault();
+                    // Scale
+                    const scaleFactor = distance / touchStartDistance;
+                    scale = touchStartScale * scaleFactor;
+                    targetEl.setAttribute('scale', `${scale} ${scale} ${scale}`);
 
-                const t1 = e.touches[0];
-                const t2 = e.touches[1];
-                const dx = t1.clientX - t2.clientX;
-                const dy = t1.clientY - t2.clientY;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-
-                // Scale
-                const scaleFactor = distance / this.touchStartDistance;
-                this.scale = this.touchStartScale * scaleFactor;
-                this.target.setAttribute('scale', `${this.scale} ${this.scale} ${this.scale}`);
-
-                // Rotation: use relative movement of the center point
-                const centerX = (t1.clientX + t2.clientX) / 2;
-                const centerY = (t1.clientY + t2.clientY) / 2;
-                if (!this.lastCenter) {
-                    this.lastCenter = { x: centerX, y: centerY };
-                    return;
+                    // Rotation based on center movement
+                    const centerX = (t1.clientX + t2.clientX) / 2;
+                    const centerY = (t1.clientY + t2.clientY) / 2;
+                    if (lastCenter) {
+                        const deltaX = centerX - lastCenter.x;
+                        const deltaY = centerY - lastCenter.y;
+                        const rotSpeed = 0.5;
+                        // Yaw (Y) from horizontal movement, Pitch (X) from vertical
+                        rotation = {
+                            x: touchStartRot.x + deltaY * rotSpeed,
+                            y: touchStartRot.y + deltaX * rotSpeed,
+                            z: 0
+                        };
+                        // Optional: clamp pitch to avoid flipping
+                        rotation.x = Math.max(-90, Math.min(90, rotation.x));
+                        targetEl.setAttribute('rotation', rotation);
+                    }
+                    lastCenter = { x: centerX, y: centerY };
                 }
 
-                const deltaX = centerX - this.lastCenter.x;
-                const deltaY = centerY - this.lastCenter.y;
-
-                // Sensitivity
-                const rotSpeed = 0.5;
-                // Apply to rotation (yaw around Y, pitch around X)
-                let newRot = {
-                    x: this.touchStartRot.x + deltaY * rotSpeed,
-                    y: this.touchStartRot.y + deltaX * rotSpeed,
-                    z: 0
-                };
-                // Clamp pitch to avoid flipping (optional)
-                newRot.x = Math.max(-90, Math.min(90, newRot.x));
-
-                this.target.setAttribute('rotation', newRot);
-                this.touchStartRot = newRot; // update for continuous motion
-                this.lastCenter = { x: centerX, y: centerY };
-            },
-
-            onTouchEnd: function (e) {
-                if (e.touches.length < 2) {
-                    this.isPinching = false;
-                    this.lastCenter = null;
+                function onTouchEnd(e) {
+                    if (e.touches.length < 2) {
+                        isPinching = false;
+                        lastCenter = null;
+                    }
                 }
             }
         });
     </script>
 
-    <!-- AR Scene with camera background -->
+    <!-- A-Frame Scene -->
     <a-scene embedded
              arjs="sourceType: webcam; detectionMode: mono; matrixCodeType: 3x3; debugUIEnabled: false; trackingMethod: best;"
              renderer="antialias: true; alpha: true;"
              gesture-control
              vr-mode-ui="enabled: false">
 
-        <!-- Camera -->
+        <!-- Camera (required) -->
         <a-entity camera></a-entity>
 
-        <!-- Marker -->
+        <!-- HIRO Marker -->
         <a-marker preset="hiro" id="solar-marker"
                   emitevents="true"
                   registerevents>
-            <!-- Optional: place a simple box to confirm marker detection -->
-            <a-box position="0 0.5 0" material="color: red; transparent: true; opacity: 0.5" scale="0.2 0.2 0.2"></a-box>
 
-            <!-- Lights -->
+            <!-- Lights (placed inside marker so they move with it) -->
             <a-light type="ambient" color="#ffffff" intensity="0.3"></a-light>
             <a-light type="point" intensity="1.5" position="0 0 0" color="#ffaa00"></a-light>
 
-            <!-- ========== SOLAR SYSTEM ========== -->
+            <!-- Solar System (scalable/rotatable) -->
             <a-entity id="solar-system">
 
                 <!-- SUN -->
@@ -282,7 +253,7 @@
                     <a-animation attribute="rotation" to="0 360 0" dur="23000" easing="linear" repeat="indefinite"></a-animation>
                 </a-entity>
 
-                <!-- Stars (optional) -->
+                <!-- Stars (decorative) -->
                 <a-entity position="0 0 0">
                     <a-sphere radius="0.02" color="#fff" position="0.5 0.3 0.5"></a-sphere>
                     <a-sphere radius="0.02" color="#fff" position="-0.4 0.5 0.6"></a-sphere>
@@ -291,45 +262,33 @@
                     <a-sphere radius="0.02" color="#fff" position="0.8 0.4 -0.3"></a-sphere>
                     <a-sphere radius="0.02" color="#fff" position="-0.3 -0.4 1.2"></a-sphere>
                 </a-entity>
-
-            </a-entity> <!-- solar-system -->
+            </a-entity> <!-- /solar-system -->
         </a-marker>
 
-        <!-- Fallback if marker not found: show a message -->
+        <!-- Simple fallback if marker is not visible -->
         <a-entity class="marker-debug"></a-entity>
     </a-scene>
 
+    <!-- Marker detection feedback -->
     <script>
-        // Additional debug: marker detection
         const marker = document.getElementById('solar-marker');
-        const debugDiv = document.getElementById('debug');
+        const debug = document.getElementById('debug-status');
         marker.addEventListener('markerFound', () => {
-            debugDiv.innerHTML = 'Marker FOUND!';
-            debugDiv.style.color = '#0f0';
+            debug.innerText = '✅ Marker FOUND! Solar system visible.';
+            debug.style.color = '#0f0';
         });
         marker.addEventListener('markerLost', () => {
-            debugDiv.innerHTML = 'Marker lost - point camera at HIRO';
-            debugDiv.style.color = '#ff0';
+            debug.innerText = '❌ Marker lost – show HIRO to camera';
+            debug.style.color = '#ff0';
         });
 
-        // Fallback for missing textures (show colored spheres)
-        // This runs after scene loads
-        AFRAME.registerComponent('texture-fallback', {
-            init: function () {
-                this.el.addEventListener('materialtextureloaded', () => {});
-                this.el.addEventListener('materialerror', (evt) => {
-                    console.warn('Texture failed to load, using fallback color', evt.detail);
-                    // Set a random color
-                    const colors = ['#ffaa00', '#ff6600', '#00aaff', '#aa00ff'];
-                    this.el.setAttribute('material', 'color', colors[Math.floor(Math.random() * colors.length)]);
-                });
-            }
-        });
-
-        // Apply to all spheres (optional)
-        document.querySelectorAll('a-sphere').forEach(el => {
-            el.setAttribute('texture-fallback', '');
-        });
+        // If camera access fails, show a message
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(() => console.log('Camera access granted'))
+            .catch(() => {
+                debug.innerText = '⚠️ Camera access denied or not available';
+                debug.style.color = '#f00';
+            });
     </script>
 </body>
 </html>
