@@ -102,9 +102,8 @@
                     if (isPanning && e.touches.length === 1) {
                         e.preventDefault();
                         const t = e.touches[0];
-                        const deltaX = (t.clientX - panStartPos.x) * 0.005; // sensitivity
+                        const deltaX = (t.clientX - panStartPos.x) * 0.005;
                         const deltaY = (t.clientY - panStartPos.y) * 0.005;
-                        // Move in screen plane (X/Y only, keep Z=0)
                         targetEl.object3D.position.x = startModelPos.x + deltaX;
                         targetEl.object3D.position.y = startModelPos.y - deltaY; // invert Y
                         // Clamp to reasonable bounds
@@ -149,15 +148,6 @@
                             lastTouchCenter.angle = currentAngle;
                         }
 
-                        // Optional: translate based on midpoint offset (disabled for clarity)
-                        // const midOffsetX = centerX - lastTouchCenter.x;
-                        // const midOffsetY = centerY - lastTouchCenter.y;
-                        // const moveSpeed = 0.001 * scale;
-                        // targetEl.object3D.position.x -= midOffsetX * moveSpeed;
-                        // targetEl.object3D.position.y += midOffsetY * moveSpeed;
-                        // targetEl.object3D.position.x = Math.max(-2, Math.min(2, targetEl.object3D.position.x));
-                        // targetEl.object3D.position.y = Math.max(-2, Math.min(2, targetEl.object3D.position.y));
-
                         lastTouchCenter.x = centerX;
                         lastTouchCenter.y = centerY;
                         startDistance = distance;
@@ -170,10 +160,8 @@
                         isPinching = false;
                         lastTouchCenter = null;
                     } else if (e.touches.length === 1) {
-                        // If we were pinching and now one finger left, stop pinch but could start pan?
                         isPinching = false;
-                        // Start pan with the remaining finger? We'll just reset.
-                        isPanning = false;
+                        isPanning = false; // reset, will restart if user moves one finger
                     }
                 }
             }
@@ -197,10 +185,7 @@
                 <a-sphere radius="0.25" position="0 0 0"
                           material="src: url(images/sun.jpg); emissive: #ff6600; emissiveIntensity: 1.5;"></a-sphere>
 
-                <!-- ===== ORBIT RINGS REMOVED (per user request) ===== -->
-                <!-- No orbit rings – only planet rings remain (Saturn, Uranus) -->
-
-                <!-- PLANETS -->
+                <!-- PLANETS (no orbit rings) -->
                 <!-- Mercury -->
                 <a-entity class="planet" position="0.5 0 0">
                     <a-entity class="planet-spin" rotation="0 0 0">
@@ -272,7 +257,7 @@
                     <a-animation attribute="rotation" to="0 360 0" dur="18000" easing="linear" repeat="indefinite"></a-animation>
                 </a-entity>
 
-                <!-- Stars -->
+                <!-- Stars (decorative) -->
                 <a-entity position="0 0 0">
                     <a-sphere radius="0.02" color="#fff" position="0.5 0.3 0.5"></a-sphere>
                     <a-sphere radius="0.02" color="#fff" position="-0.4 0.5 0.6"></a-sphere>
