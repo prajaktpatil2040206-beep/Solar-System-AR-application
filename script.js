@@ -1,166 +1,31 @@
+// Import Three.js and OrbitControls from CDN
 import * as THREE from "https://unpkg.com/three@0.127.0/build/three.module.js";
+import { OrbitControls } from "https://unpkg.com/three@0.127.0/examples/jsm/controls/OrbitControls.js";
 
-// --- SETUP RENDERER (with alpha for AR background) ---
-const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+// --- LIVE CAMERA BACKGROUND SETUP ---
+// Create a video element and stream webcam into it
+const video = document.createElement('video');
+video.autoplay = true;
+video.muted = true; // required for autoplay in some browsers
+video.playsInline = true;
+
+// Request webcam access
+navigator.mediaDevices.getUserMedia({ video: true })
+  .then(stream => {
+    video.srcObject = stream;
+    video.play();
+  })
+  .catch(err => {
+    console.error('Camera access denied or not available. Using fallback color background.', err);
+    // fallback: set a color background later in the code
+  });
+
+// --- RENDERER ---
+const renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(window.devicePixelRatio);
 document.body.appendChild(renderer.domElement);
 
-// --- SCENE & CAMERA ---
-const scene = new THREE.Scene();
-const camera = new THREE.Camera(); // AR.js will update projection
-scene.add(camera);
-
-// --- LIGHTS ---
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-scene.add(ambientLight);
-const sunLight = new THREE.PointLight(0xffffff, 4, 0); // attached to sun later
-
-// --- AR.js CONTEXT (proper initialization) ---
-const ar = new ARjs.Context({
-  cameraParametersUrl: 'https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/data/camera_para.dat',
-  detectionMode: 'mono',
-  maxDetectionRate: 60,
-  canvasWidth: 640,
-  canvasHeight: 480,
-});
-
-// Initialize AR and start camera feed
-ar.init(() => {
-  // Once initialized, copy projection matrix to camera
-  camera.projectionMatrix.copy(ar.getProjectionMatrix());
-  // Start AR processing
-  ar.start();
-});
-
-// --- MARKER ROOT GROUP ---
-const markerRoot = new THREE.Group();
-scene.add(markerRoot);
-
-// Marker controls for Hiro pattern
-const markerControls = new ARjs.MarkerControls(ar, markerRoot, {
-  type: 'pattern',
-  patternUrl: ARjs.Pattern.Hiro,  // built-in Hiro pattern
-  changeMatrixMode: 'modelViewMatrix'
-});
-
-// --- SOLAR SYSTEM GROUP (attached to marker, initially hidden) ---
-const solarSystemGroup = new THREE.Group();
-solarSystemGroup.scale.set(0.02, 0.02, 0.02);
-solarSystemGroup.visible = false;
-markerRoot.add(solarSystemGroup);
-
-// Show/hide on marker detection
-markerControls.addEventListener('markerFound', () => {
-  solarSystemGroup.visible = true;
-});
-markerControls.addEventListener('markerLost', () => {
-  solarSystemGroup.visible = false;
-});
-
-// --- TEXTURE LOADER ---
-const textureLoader = new THREE.TextureLoader();
-const loadTexture = (name) => textureLoader.load(`images/${name}.jpg`);
-
-const sunTexture = loadTexture('sun');
-const mercuryTexture = loadTexture('mercury');
-const venusTexture = loadTexture('venus');
-const earthTexture = loadTexture('earth');
-const marsTexture = loadTexture('mars');
-const jupiterTexture = loadTexture('jupiter');
-const saturnTexture = loadTexture('saturn');
-const uranusTexture = loadTexture('uranus');
-const neptuneTexture = loadTexture('neptune');
-const saturnRingTexture = textureLoader.load('images/saturn_ring.png');
-const uranusRingTexture = textureLoader.load('images/uranus_ring.png');
-
-// --- CREATE SUN ---
-const sun = new THREE.Mesh(
-  new THREE.SphereGeometry(15, 50, 50),
-  new THREE.MeshStandardMaterial({ map: sunTexture })
-);
-sun.position.set(0, 0, 0);
-sun.add(sunLight);
-solarSystemGroup.add(sun);
-
-// --- ARRAY FOR PLANETS ---
-const planets = [];
-const pathOfPlanets = []; // for toggling visibility
-
-// Helper: create orbit path (adds to solarSystemGroup)
-function createOrbitPath(radius, color) {
-  const material = new THREE.LineBasicMaterial({ color });
-  const points = [];
-  for (let i = 0; i <= 100; i++) {
-    const angle = (i / 100) * Math.PI * 2;
-    points.push(radius * Math.cos(angle), 0, radius * Math.sin(angle));
-  }
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(points, 3));
-  const loop = new THREE.LineLoop(geometry, material);
-  solarSystemGroup.add(loop);
-  return loop;
-}
-
-// Helper: create a planet (with optional rings)
-function createPlanet(size, texture, distance, ring = null) {
-  const geometry = new THREE.SphereGeometry(size, 50, 50);
-  const material = new THREE.MeshStandardMaterial({ map: texture });
-  const mesh = new THREE.Mesh(geometry, material);
-
-  const planetGroup = new THREE.Group();
-  mesh.position.set(distance, 0, 0);
-  planetGroup.add(mesh);
-
-  if (ring) {
-    const ringGeo = new THREE.RingGeometry(ring.innerRadius, ring.outerRadius, 32);
-    const ringMat = new THREE.MeshBasicMaterial({ map: ring.ringmat, side: THREE.DoubleSide });
-    const ringMesh = new THREE.Mesh(ringGeo, ringMat);
-    ringMesh.position.set(distance, 0, 0);
-    ringMesh.rotation.x = -0.5 * Math.PI;
-    planetGroup.add(ringMesh);
-  }
-
-  solarSystemGroup.add(planetGroup);
-  return { group: planetGroup, mesh };
-}
-
-// Planet data
-const planetData = [
-  { name: 'Mercury', size: 3.2, tex: mercuryTexture, dist: 28 },
-  { name: 'Venus',   size: 5.8, tex: venusTexture,   dist: 44 },
-  { name: 'Earth',   size: 6,   tex: earthTexture,   dist: 62 },
-  { name: 'Mars',    size: 4,   tex: marsTexture,    dist: 78 },
-  { name: 'Jupiter', size: 12,  tex: jupiterTexture, dist: 100 },
-  { name: 'Saturn',  size: 10,  tex: saturnTexture,  dist: 138, ring: { innerRadius: 10, outerRadius: 20, ringmat: saturnRingTexture } },
-  { name: 'Uranus',  size: 7,   tex: uranusTexture,  dist: 176, ring: { innerRadius: 7, outerRadius: 12, ringmat: uranusRingTexture } },
-  { name: 'Neptune', size: 7,   tex: neptuneTexture, dist: 200 }
-];
-
-planetData.forEach(data => {
-  const { group, mesh } = createPlanet(data.size, data.tex, data.dist, data.ring || null);
-  planets.push({
-    name: data.name,
-    group,
-    mesh,
-    speedData: { orbitSpeed: 0.001, rotateSpeed: 0.01 } // placeholder
-  });
-  const color = true ? 0xffffff : 0x333333; // will be updated via GUI
-  const path = createOrbitPath(data.dist, color);
-  pathOfPlanets.push(path);
-});
-
-// Assign real speeds (as in original)
-planets[0].speedData = { orbitSpeed: 0.004, rotateSpeed: 0.004 }; // Mercury
-planets[1].speedData = { orbitSpeed: 0.015, rotateSpeed: 0.002 }; // Venus
-planets[2].speedData = { orbitSpeed: 0.01, rotateSpeed: 0.02 };   // Earth
-planets[3].speedData = { orbitSpeed: 0.008, rotateSpeed: 0.018 }; // Mars
-planets[4].speedData = { orbitSpeed: 0.002, rotateSpeed: 0.04 };  // Jupiter
-planets[5].speedData = { orbitSpeed: 0.0009, rotateSpeed: 0.038 }; // Saturn
-planets[6].speedData = { orbitSpeed: 0.0004, rotateSpeed: 0.03 };  // Uranus
-planets[7].speedData = { orbitSpeed: 0.0001, rotateSpeed: 0.032 }; // Neptune
-
-// --- GUI OPTIONS ---
+// GUI options
 const options = {
   "Real view": true,
   "Show path": true,
@@ -169,38 +34,124 @@ const options = {
   "Dark Mode": true
 };
 
-// --- DAT.GUI ---
-const gui = new dat.GUI();
-gui.add(options, "Real view").onChange(val => ambientLight.intensity = val ? 0 : 0.5);
-gui.add(options, "Show path").onChange(val => pathOfPlanets.forEach(p => p.visible = val));
-gui.add(options, "isPaused").name("Pause Animation");
-gui.add(options, "Dark Mode").onChange(isDark => {
-  pathOfPlanets.forEach(path => {
-    path.material.color.setHex(isDark ? 0xffffff : 0x333333);
-  });
-  tooltip.style.color = isDark ? "white" : "black";
-  tooltip.style.background = isDark ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.8)";
-});
-gui.add(options, "speed", 0, 20);
+// Load textures for all celestial bodies
+const textureLoader = new THREE.TextureLoader();
+const sunTexture = textureLoader.load('images/sun.jpg');
+const mercuryTexture = textureLoader.load('images/mercury.jpg');
+const venusTexture = textureLoader.load('images/venus.jpg');
+const earthTexture = textureLoader.load('images/earth.jpg');
+const marsTexture = textureLoader.load('images/mars.jpg');
+const jupiterTexture = textureLoader.load('images/jupiter.jpg');
+const saturnTexture = textureLoader.load('images/saturn.jpg');
+const uranusTexture = textureLoader.load('images/uranus.jpg');
+const neptuneTexture = textureLoader.load('images/neptune.jpg');
+const saturnRingTexture = textureLoader.load('images/saturn_ring.png');
+const uranusRingTexture = textureLoader.load('images/uranus_ring.png');
 
-// Planet speed folders
-planets.forEach(({ name, speedData }) => {
-  const folder = gui.addFolder(name);
-  folder.add(speedData, "orbitSpeed", 0, 0.05).name("Orbit Speed");
-  folder.add(speedData, "rotateSpeed", 0, 0.05).name("Self Rotation");
-  folder.open();
+// Create the scene
+const scene = new THREE.Scene();
+
+// Set background to video texture if camera available, else a dark color
+const videoTexture = new THREE.VideoTexture(video);
+// We'll assign background after camera is ready; for now set a placeholder
+scene.background = new THREE.Color(0x111122);
+
+// Once video metadata is loaded, switch to video texture
+video.addEventListener('loadeddata', () => {
+  scene.background = videoTexture;
 });
 
-// --- TOOLTIP (hover info) ---
+// Set up the camera (field of view, aspect ratio, near/far)
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.set(-50, 90, 150);
+
+// Add orbit controls for mouse interaction
+const orbit = new OrbitControls(camera, renderer.domElement);
+orbit.minDistance = 30;
+orbit.maxDistance = 500;
+orbit.enableDamping = true;
+orbit.dampingFactor = 0.05;
+
+// Create the sun using basic material and texture
+const sun = new THREE.Mesh(
+  new THREE.SphereGeometry(15, 50, 50),
+  new THREE.MeshBasicMaterial({ map: sunTexture })
+);
+scene.add(sun);
+
+// Add a point light at the sun's location
+const sunLight = new THREE.PointLight(0xffffff, 4, 300);
+scene.add(sunLight);
+
+// Add ambient light for general illumination
+const ambientLight = new THREE.AmbientLight(0xffffff, 0);
+scene.add(ambientLight);
+
+// Helper function to draw orbital paths
+const path_of_planets = [];
+function createLineLoopWithMesh(radius, isDark, width) {
+  const color = isDark ? 0xffffff : 0x333333;
+  const material = new THREE.LineBasicMaterial({ color, linewidth: width });
+  const geometry = new THREE.BufferGeometry();
+  const points = [];
+
+  for (let i = 0; i <= 100; i++) {
+    const angle = (i / 100) * Math.PI * 2;
+    points.push(radius * Math.cos(angle), 0, radius * Math.sin(angle));
+  }
+
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(points, 3));
+  const loop = new THREE.LineLoop(geometry, material);
+  scene.add(loop);
+  path_of_planets.push(loop);
+}
+
+// Function to generate a planet with optional rings
+function genratePlanet(size, texture, x, ring) {
+  const geometry = new THREE.SphereGeometry(size, 50, 50);
+  const material = new THREE.MeshStandardMaterial({ map: texture });
+  const mesh = new THREE.Mesh(geometry, material);
+
+  const planetObj = new THREE.Object3D();
+  mesh.position.set(x, 0, 0);
+  planetObj.add(mesh);
+
+  if (ring) {
+    const ringGeo = new THREE.RingGeometry(ring.innerRadius, ring.outerRadius, 32);
+    const ringMat = new THREE.MeshBasicMaterial({ map: ring.ringmat, side: THREE.DoubleSide });
+    const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+    ringMesh.position.set(x, 0, 0);
+    ringMesh.rotation.x = -0.5 * Math.PI;
+    planetObj.add(ringMesh);
+  }
+
+  scene.add(planetObj);
+  createLineLoopWithMesh(x, options["Dark Mode"], 3);
+
+  return { planetObj, planet: mesh };
+}
+
+// List of planets with their properties
+const planets = [
+  { name: "Mercury", ...genratePlanet(3.2, mercuryTexture, 28), speedData: { orbitSpeed: 0.004, rotateSpeed: 0.004 } },
+  { name: "Venus", ...genratePlanet(5.8, venusTexture, 44), speedData: { orbitSpeed: 0.015, rotateSpeed: 0.002 } },
+  { name: "Earth", ...genratePlanet(6, earthTexture, 62), speedData: { orbitSpeed: 0.01, rotateSpeed: 0.02 } },
+  { name: "Mars", ...genratePlanet(4, marsTexture, 78), speedData: { orbitSpeed: 0.008, rotateSpeed: 0.018 } },
+  { name: "Jupiter", ...genratePlanet(12, jupiterTexture, 100), speedData: { orbitSpeed: 0.002, rotateSpeed: 0.04 } },
+  { name: "Saturn", ...genratePlanet(10, saturnTexture, 138, { innerRadius: 10, outerRadius: 20, ringmat: saturnRingTexture }), speedData: { orbitSpeed: 0.0009, rotateSpeed: 0.038 } },
+  { name: "Uranus", ...genratePlanet(7, uranusTexture, 176, { innerRadius: 7, outerRadius: 12, ringmat: uranusRingTexture }), speedData: { orbitSpeed: 0.0004, rotateSpeed: 0.03 } },
+  { name: "Neptune", ...genratePlanet(7, neptuneTexture, 200), speedData: { orbitSpeed: 0.0001, rotateSpeed: 0.032 } }
+];
+
+// Setup raycasting and tooltip for planet hover info
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 let mouseX = 0, mouseY = 0;
-
 const tooltip = document.createElement("div");
 tooltip.style.position = "absolute";
+tooltip.style.color = "white";
 tooltip.style.padding = "4px 8px";
 tooltip.style.background = "rgba(0,0,0,0.6)";
-tooltip.style.color = "white";
 tooltip.style.borderRadius = "5px";
 tooltip.style.pointerEvents = "none";
 tooltip.style.zIndex = "1000";
@@ -214,73 +165,73 @@ window.addEventListener("mousemove", (e) => {
   mouse.y = -(mouseY / window.innerHeight) * 2 + 1;
 });
 
-// --- ANIMATION LOOP ---
+// dat.GUI controls
+const gui = new dat.GUI();
+
+// Dark Mode now only affects path colors and tooltip, not background
+gui.add(options, "Real view").onChange(e => ambientLight.intensity = e ? 0 : 0.5);
+gui.add(options, "Show path").onChange(e => path_of_planets.forEach(path => path.visible = e));
+gui.add(options, "isPaused").name("Pause Animation");
+gui.add(options, "Dark Mode").onChange((isDark) => {
+  // Update path colors
+  path_of_planets.forEach(p => scene.remove(p));
+  path_of_planets.length = 0;
+  planets.forEach(({ planetObj }) => createLineLoopWithMesh(planetObj.children[0].position.x, isDark, 3));
+  // Update tooltip style
+  tooltip.style.color = isDark ? "white" : "black";
+  tooltip.style.background = isDark ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.8)";
+});
+gui.add(options, "speed", 0, (new URL(window.location.href).searchParams.get("ms") * 1) || 20);
+
+// Add speed folders per planet
+planets.forEach(({ name, speedData }) => {
+  const folder = gui.addFolder(name);
+  folder.add(speedData, "orbitSpeed", 0, 0.05).name("Orbit Speed");
+  folder.add(speedData, "rotateSpeed", 0, 0.05).name("Self Rotation");
+});
+
+// Animation loop
 const clock = new THREE.Clock();
-
 function animate() {
-  requestAnimationFrame(animate);
-
-  // Update AR.js (processes camera frame and marker detection)
-  ar.update(scene);
-
   const delta = clock.getDelta();
 
-  if (!options.isPaused && solarSystemGroup.visible) {
-    // Sun rotation
+  if (!options.isPaused) {
     sun.rotateY(delta * options.speed * 0.5);
-
-    // Planets
-    planets.forEach(({ group, mesh, speedData }) => {
-      group.rotateY(speedData.orbitSpeed * options.speed * delta * 60);
-      mesh.rotateY(speedData.rotateSpeed * options.speed * delta * 60);
+    planets.forEach(({ planetObj, planet, speedData }) => {
+      planetObj.rotateY(speedData.orbitSpeed * options.speed * delta * 60);
+      planet.rotateY(speedData.rotateSpeed * options.speed * delta * 60);
     });
   }
 
-  // Raycasting for tooltip
-  if (solarSystemGroup.visible) {
-    const testMeshes = [sun, ...planets.map(p => p.mesh)];
-    raycaster.setFromCamera(mouse, camera);
-    const intersects = raycaster.intersectObjects(testMeshes);
-
-    if (intersects.length > 0) {
-      const hit = intersects[0].object;
-      tooltip.innerHTML = (hit === sun) ? "Sun" : (planets.find(p => p.mesh === hit)?.name || "");
-      tooltip.style.display = "block";
-      tooltip.style.left = (mouseX + 10) + "px";
-      tooltip.style.top = (mouseY + 10) + "px";
+  raycaster.setFromCamera(mouse, camera);
+  const intersects = raycaster.intersectObjects([sun, ...planets.map(p => p.planet)]);
+  if (intersects.length > 0) {
+    const intersected = intersects[0].object;
+    if (intersected === sun) {
+      tooltip.innerHTML = "Sun";
     } else {
-      tooltip.style.display = "none";
+      const hoveredPlanet = planets.find(p => p.planet === intersected);
+      if (hoveredPlanet) {
+        tooltip.innerHTML = hoveredPlanet.name;
+      }
     }
+    tooltip.style.display = "block";
+    tooltip.style.left = `${mouseX + 10}px`;
+    tooltip.style.top = `${mouseY + 10}px`;
   } else {
     tooltip.style.display = "none";
   }
 
+  // Ensure video texture updates (happens automatically)
+  orbit.update();
   renderer.render(scene, camera);
+  requestAnimationFrame(animate);
 }
 animate();
 
-// --- RESIZE HANDLER ---
+// Handle window resizing
 window.addEventListener("resize", () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
-});
-
-// --- DEBUG: Show message if marker not detected ---
-const msg = document.createElement("div");
-msg.style.position = "absolute";
-msg.style.bottom = "20px";
-msg.style.left = "20px";
-msg.style.background = "rgba(0,0,0,0.7)";
-msg.style.color = "white";
-msg.style.padding = "8px 12px";
-msg.style.borderRadius = "20px";
-msg.style.fontFamily = "sans-serif";
-msg.style.zIndex = "10000";
-msg.innerText = "🔍 Point camera at Hiro marker";
-document.body.appendChild(msg);
-
-markerControls.addEventListener('markerFound', () => {
-  msg.style.display = "none";
-});
-markerControls.addEventListener('markerLost', () => {
-  msg.style.display = "block";
 });
