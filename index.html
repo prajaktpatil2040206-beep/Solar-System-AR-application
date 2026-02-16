@@ -27,7 +27,6 @@
             margin: 0 auto;
             backdrop-filter: blur(5px);
         }
-        /* Optional small hint */
         .hint {
             position: absolute;
             top: 10px;
@@ -45,9 +44,10 @@
     <div class="info">🔵 Point camera at <strong>HIRO marker</strong> to see your Solar System</div>
     <div class="hint">📐 Move around the marker – view changes realistically</div>
 
+    <!-- ✅ Fixed: alpha: true enables camera background -->
     <a-scene embedded
              arjs="sourceType: webcam; detectionMode: mono; matrixCodeType: 3x3; debugUIEnabled: false; trackingMethod: best;"
-             renderer="antialias: true; alpha: false;">
+             renderer="antialias: true; alpha: true;">
 
         <!-- Camera (required) -->
         <a-entity camera></a-entity>
@@ -157,9 +157,7 @@
         </a-marker>
     </a-scene>
 
-    <!-- (Optional script – you can add custom JS here if needed) -->
     <script>
-        // Any extra JavaScript can go here, but the AR scene works standalone.
         console.log('AR Solar System with your textures ready!');
     </script>
 </body>
