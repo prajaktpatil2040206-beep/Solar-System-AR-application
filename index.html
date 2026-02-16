@@ -207,51 +207,52 @@
                 <!-- ===== PLANETS with orbital speeds (smaller dur = faster) ===== -->
                 <!-- Mercury -->
                 <a-entity class="planet" position="0.5 0 0">
+                    <a-animation attribute="rotation" to="0 360 0" dur="2000" easing="linear" repeat="indefinite"></a-animation> <!-- orbit -->
                     <a-entity class="planet-spin" rotation="0 0 0">
                         <a-sphere radius="0.05" material="src: url(images/mercury.jpg);"></a-sphere>
-                        <a-animation attribute="rotation" to="0 360 0" dur="4000" easing="linear" repeat="indefinite"></a-animation>
+                        <a-animation attribute="rotation" to="0 360 0" dur="4000" easing="linear" repeat="indefinite"></a-animation> <!-- spin -->
                     </a-entity>
-                    <a-animation attribute="rotation" to="0 360 0" dur="2000" easing="linear" repeat="indefinite"></a-animation> <!-- orbit -->
                 </a-entity>
 
                 <!-- Venus -->
                 <a-entity class="planet" position="0.7 0 0">
+                    <a-animation attribute="rotation" to="0 360 0" dur="3000" easing="linear" repeat="indefinite"></a-animation>
                     <a-entity class="planet-spin" rotation="0 0 0">
                         <a-sphere radius="0.06" material="src: url(images/venus.jpg);"></a-sphere>
                         <a-animation attribute="rotation" to="0 360 0" dur="6000" easing="linear" repeat="indefinite"></a-animation>
                     </a-entity>
-                    <a-animation attribute="rotation" to="0 360 0" dur="3000" easing="linear" repeat="indefinite"></a-animation>
                 </a-entity>
 
                 <!-- Earth -->
                 <a-entity class="planet" position="0.9 0 0">
+                    <a-animation attribute="rotation" to="0 360 0" dur="4000" easing="linear" repeat="indefinite"></a-animation>
                     <a-entity class="planet-spin" rotation="0 0 0">
                         <a-sphere radius="0.065" material="src: url(images/earth.jpg);"></a-sphere>
                         <a-animation attribute="rotation" to="0 360 0" dur="8000" easing="linear" repeat="indefinite"></a-animation>
                     </a-entity>
-                    <a-animation attribute="rotation" to="0 360 0" dur="4000" easing="linear" repeat="indefinite"></a-animation>
                 </a-entity>
 
                 <!-- Mars -->
                 <a-entity class="planet" position="1.1 0 0">
+                    <a-animation attribute="rotation" to="0 360 0" dur="5000" easing="linear" repeat="indefinite"></a-animation>
                     <a-entity class="planet-spin" rotation="0 0 0">
                         <a-sphere radius="0.055" material="src: url(images/mars.jpg);"></a-sphere>
                         <a-animation attribute="rotation" to="0 360 0" dur="9000" easing="linear" repeat="indefinite"></a-animation>
                     </a-entity>
-                    <a-animation attribute="rotation" to="0 360 0" dur="5000" easing="linear" repeat="indefinite"></a-animation>
                 </a-entity>
 
                 <!-- Jupiter -->
                 <a-entity class="planet" position="1.5 0 0">
+                    <a-animation attribute="rotation" to="0 360 0" dur="8000" easing="linear" repeat="indefinite"></a-animation>
                     <a-entity class="planet-spin" rotation="0 0 0">
                         <a-sphere radius="0.12" material="src: url(images/jupiter.jpg);"></a-sphere>
                         <a-animation attribute="rotation" to="0 360 0" dur="10000" easing="linear" repeat="indefinite"></a-animation>
                     </a-entity>
-                    <a-animation attribute="rotation" to="0 360 0" dur="8000" easing="linear" repeat="indefinite"></a-animation>
                 </a-entity>
 
                 <!-- Saturn (with ring) -->
                 <a-entity class="planet" position="1.9 0 0">
+                    <a-animation attribute="rotation" to="0 360 0" dur="10000" easing="linear" repeat="indefinite"></a-animation>
                     <a-entity class="planet-spin" rotation="0 0 0">
                         <a-sphere radius="0.1" material="src: url(images/saturn.jpg);"></a-sphere>
                         <a-ring radius-inner="0.15" radius-outer="0.25"
@@ -259,11 +260,11 @@
                                 rotation="90 0 0"></a-ring>
                         <a-animation attribute="rotation" to="0 360 0" dur="11000" easing="linear" repeat="indefinite"></a-animation>
                     </a-entity>
-                    <a-animation attribute="rotation" to="0 360 0" dur="10000" easing="linear" repeat="indefinite"></a-animation>
                 </a-entity>
 
                 <!-- Uranus (with ring) -->
                 <a-entity class="planet" position="2.3 0 0">
+                    <a-animation attribute="rotation" to="0 360 0" dur="14000" easing="linear" repeat="indefinite"></a-animation>
                     <a-entity class="planet-spin" rotation="0 0 0">
                         <a-sphere radius="0.08" material="src: url(images/uranus.jpg);"></a-sphere>
                         <a-ring radius-inner="0.12" radius-outer="0.2"
@@ -271,16 +272,15 @@
                                 rotation="90 0 0"></a-ring>
                         <a-animation attribute="rotation" to="0 360 0" dur="12000" easing="linear" repeat="indefinite"></a-animation>
                     </a-entity>
-                    <a-animation attribute="rotation" to="0 360 0" dur="14000" easing="linear" repeat="indefinite"></a-animation>
                 </a-entity>
 
                 <!-- Neptune -->
                 <a-entity class="planet" position="2.7 0 0">
+                    <a-animation attribute="rotation" to="0 360 0" dur="18000" easing="linear" repeat="indefinite"></a-animation>
                     <a-entity class="planet-spin" rotation="0 0 0">
                         <a-sphere radius="0.08" material="src: url(images/neptune.jpg);"></a-sphere>
                         <a-animation attribute="rotation" to="0 360 0" dur="13000" easing="linear" repeat="indefinite"></a-animation>
                     </a-entity>
-                    <a-animation attribute="rotation" to="0 360 0" dur="18000" easing="linear" repeat="indefinite"></a-animation>
                 </a-entity>
 
                 <!-- Stars (optional) -->
