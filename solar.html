@@ -47,7 +47,7 @@
     <a href="index.html" class="back-btn">← Home</a>
     <div class="info">🔵 Point at HIRO – 1 finger rotate · 2 fingers pan/zoom</div>
 
-    <!-- Gesture handler: 1-finger rotate, 2-finger pan & zoom -->
+    <!-- Gesture handler: 1-finger rotate, 2-finger pan & zoom (applied to whole system) -->
     <script>
         AFRAME.registerComponent('gesture-control', {
             init: function () {
@@ -152,12 +152,10 @@
                         const deltaY = midY - prevMidY;
 
                         // Move the object in world space (X right, Y up)
-                        // The marker's world axes: X right, Y up, Z out of marker.
-                        // We'll move in X and Y only (Z remains 0 for simplicity)
                         targetEl.object3D.position.x = startPosition.x - deltaX * speedPan * newScale;
-                        targetEl.object3D.position.y = startPosition.y + deltaY * speedPan * newScale; // screen Y is opposite world Y? Usually screen Y down, world Y up, so we add.
+                        targetEl.object3D.position.y = startPosition.y + deltaY * speedPan * newScale; // screen Y is opposite world Y, so add
 
-                        // Note: we keep Z untouched (0)
+                        // Z remains 0 (plane of marker)
                     }
                 }
 
@@ -168,10 +166,9 @@
                         isOneFinger = false;
                         isTwoFinger = false;
                     } else if (touches.length === 1) {
-                        // Transition from two-finger to one-finger? We'll just reset and let new gesture start.
+                        // Transition from two-finger to one-finger – reset to avoid confusion
                         isOneFinger = false;
                         isTwoFinger = false;
-                        // Optionally, we could restart one-finger with the remaining touch, but simpler to reset.
                     }
                 }
             }
@@ -190,15 +187,13 @@
             <a-light type="ambient" color="#ffffff" intensity="0.3"></a-light>
             <a-light type="point" intensity="2" position="0 0 0" color="#ffaa00"></a-light>
 
+            <!-- All planets are direct children of solar-system, each with its own position (relative to sun) -->
             <a-entity id="solar-system">
-                <!-- SUN -->
+                <!-- SUN (center) -->
                 <a-sphere radius="0.25" position="0 0 0"
                           material="src: url(images/sun.jpg); emissive: #ff6600; emissiveIntensity: 1.5;"></a-sphere>
 
-                <!-- ORBIT RINGS (all removed – no golden circles) -->
-
-                <!-- PLANETS -->
-                <!-- Mercury -->
+                <!-- MERCURY -->
                 <a-entity class="planet" position="0.5 0 0">
                     <a-entity class="planet-spin" rotation="0 0 0">
                         <a-sphere radius="0.05" material="src: url(images/mercury.jpg);"></a-sphere>
@@ -206,7 +201,8 @@
                     </a-entity>
                     <a-animation attribute="rotation" to="0 360 0" dur="2000" easing="linear" repeat="indefinite"></a-animation>
                 </a-entity>
-                <!-- Venus -->
+
+                <!-- VENUS -->
                 <a-entity class="planet" position="0.7 0 0">
                     <a-entity class="planet-spin" rotation="0 0 0">
                         <a-sphere radius="0.06" material="src: url(images/venus.jpg);"></a-sphere>
@@ -214,7 +210,8 @@
                     </a-entity>
                     <a-animation attribute="rotation" to="0 360 0" dur="3000" easing="linear" repeat="indefinite"></a-animation>
                 </a-entity>
-                <!-- Earth -->
+
+                <!-- EARTH -->
                 <a-entity class="planet" position="0.9 0 0">
                     <a-entity class="planet-spin" rotation="0 0 0">
                         <a-sphere radius="0.065" material="src: url(images/earth.jpg);"></a-sphere>
@@ -222,7 +219,8 @@
                     </a-entity>
                     <a-animation attribute="rotation" to="0 360 0" dur="4000" easing="linear" repeat="indefinite"></a-animation>
                 </a-entity>
-                <!-- Mars -->
+
+                <!-- MARS -->
                 <a-entity class="planet" position="1.1 0 0">
                     <a-entity class="planet-spin" rotation="0 0 0">
                         <a-sphere radius="0.055" material="src: url(images/mars.jpg);"></a-sphere>
@@ -230,7 +228,8 @@
                     </a-entity>
                     <a-animation attribute="rotation" to="0 360 0" dur="5000" easing="linear" repeat="indefinite"></a-animation>
                 </a-entity>
-                <!-- Jupiter -->
+
+                <!-- JUPITER -->
                 <a-entity class="planet" position="1.5 0 0">
                     <a-entity class="planet-spin" rotation="0 0 0">
                         <a-sphere radius="0.12" material="src: url(images/jupiter.jpg);"></a-sphere>
@@ -238,7 +237,8 @@
                     </a-entity>
                     <a-animation attribute="rotation" to="0 360 0" dur="8000" easing="linear" repeat="indefinite"></a-animation>
                 </a-entity>
-                <!-- Saturn -->
+
+                <!-- SATURN (with ring) -->
                 <a-entity class="planet" position="1.9 0 0">
                     <a-entity class="planet-spin" rotation="0 0 0">
                         <a-sphere radius="0.1" material="src: url(images/saturn.jpg);"></a-sphere>
@@ -249,7 +249,8 @@
                     </a-entity>
                     <a-animation attribute="rotation" to="0 360 0" dur="10000" easing="linear" repeat="indefinite"></a-animation>
                 </a-entity>
-                <!-- Uranus -->
+
+                <!-- URANUS (with ring) -->
                 <a-entity class="planet" position="2.3 0 0">
                     <a-entity class="planet-spin" rotation="0 0 0">
                         <a-sphere radius="0.08" material="src: url(images/uranus.jpg);"></a-sphere>
@@ -260,7 +261,8 @@
                     </a-entity>
                     <a-animation attribute="rotation" to="0 360 0" dur="14000" easing="linear" repeat="indefinite"></a-animation>
                 </a-entity>
-                <!-- Neptune -->
+
+                <!-- NEPTUNE -->
                 <a-entity class="planet" position="2.7 0 0">
                     <a-entity class="planet-spin" rotation="0 0 0">
                         <a-sphere radius="0.08" material="src: url(images/neptune.jpg);"></a-sphere>
@@ -269,7 +271,7 @@
                     <a-animation attribute="rotation" to="0 360 0" dur="18000" easing="linear" repeat="indefinite"></a-animation>
                 </a-entity>
 
-                <!-- Stars -->
+                <!-- Stars (decorative) -->
                 <a-entity position="0 0 0">
                     <a-sphere radius="0.02" color="#fff" position="0.5 0.3 0.5"></a-sphere>
                     <a-sphere radius="0.02" color="#fff" position="-0.4 0.5 0.6"></a-sphere>
