@@ -45,9 +45,9 @@
 </head>
 <body>
     <a href="index.html" class="back-btn">← Home</a>
-    <div class="info">🔵 Point at HIRO – 1 finger rotate · 2 fingers pan/zoom</div>
+    <div class="info">🔵 Point at HIRO – 1 finger rotate · 2 fingers drag & zoom anywhere</div>
 
-    <!-- Gesture handler: 1-finger rotate, 2-finger pan & zoom (applied to whole system) -->
+    <!-- Gesture handler: 1‑finger rotate, 2‑finger drag+zoom with fixed point under fingers -->
     <script>
         AFRAME.registerComponent('gesture-control', {
             init: function () {
@@ -62,34 +62,73 @@
                 let startDistance = 0;
                 let startScale = 1;
                 let startPosition = { x: 0, y: 0, z: 0 };
-                let startRotation = { x: 0, y: 0, z: 0 }; // Euler in radians
+                // For two‑finger zoom & drag: store initial midpoint in marker space
+                let initialMidpointMarker = null; // {x, y} in marker coordinates (z=0)
+                let initialLocalPoint = null;      // {x, y, z} in object's local space
 
                 const canvas = this.el.canvas;
                 const speedRot = 0.005;      // rotation sensitivity
-                const speedPan = 0.001;       // pan sensitivity
 
                 canvas.addEventListener('touchstart', onTouchStart, { passive: false });
                 canvas.addEventListener('touchmove', onTouchMove, { passive: false });
                 canvas.addEventListener('touchend', onTouchEnd);
                 canvas.addEventListener('touchcancel', onTouchEnd);
 
+                // Helper: get marker's world transform (as three.js object)
+                function getMarkerTransform() {
+                    const marker = document.getElementById('solar-marker');
+                    return marker ? marker.object3D : null;
+                }
+
+                // Helper: convert screen coordinates (clientX, clientY) to a point on the marker plane (Z=0 in marker space)
+                // Returns {x, y} in marker coordinates, or null if no intersection.
+                function screenToMarkerPlane(clientX, clientY) {
+                    const scene = document.querySelector('a-scene');
+                    if (!scene || !scene.camera) return null;
+                    const camera = scene.camera;
+                    const markerObj = getMarkerTransform();
+                    if (!markerObj) return null;
+
+                    // Get marker's world position and rotation
+                    const markerPos = new THREE.Vector3();
+                    const markerQuat = new THREE.Quaternion();
+                    markerObj.matrixWorld.decompose(markerPos, markerQuat, new THREE.Vector3());
+
+                    // Plane in world space: normal = marker's local Z axis (0,0,1) transformed to world
+                    const planeNormal = new THREE.Vector3(0, 0, 1).applyQuaternion(markerQuat).normalize();
+                    const planePoint = markerPos.clone();
+
+                    // Build ray from camera through screen point
+                    const ray = new THREE.Raycaster();
+                    const mouse = new THREE.Vector2();
+                    mouse.x = (clientX / window.innerWidth) * 2 - 1;
+                    mouse.y = -(clientY / window.innerHeight) * 2 + 1;
+                    ray.setFromCamera(mouse, camera);
+
+                    // Compute intersection with plane
+                    const denominator = planeNormal.dot(ray.ray.direction);
+                    if (Math.abs(denominator) < 1e-6) return null; // parallel
+                    const t = planeNormal.dot(planePoint.clone().sub(ray.ray.origin)) / denominator;
+                    if (t < 0) return null; // behind camera
+                    const worldPoint = ray.ray.origin.clone().add(ray.ray.direction.clone().multiplyScalar(t));
+
+                    // Transform world point to marker local space
+                    const localPoint = worldPoint.clone().sub(markerPos).applyQuaternion(markerQuat.clone().invert());
+                    return { x: localPoint.x, y: localPoint.y }; // z should be ~0
+                }
+
                 function onTouchStart(e) {
                     e.preventDefault();
                     const touches = e.touches;
                     if (touches.length === 1) {
-                        // Start one-finger rotation
+                        // One‑finger rotation
                         isOneFinger = true;
                         isTwoFinger = false;
                         const touch = touches[0];
                         startTouch1.x = touch.clientX;
                         startTouch1.y = touch.clientY;
-                        // Store current rotation (in radians)
-                        const rot = targetEl.object3D.rotation;
-                        startRotation.x = rot.x;
-                        startRotation.y = rot.y;
-                        startRotation.z = rot.z;
                     } else if (touches.length === 2) {
-                        // Start two-finger pan/zoom
+                        // Two‑finger zoom+pan
                         isOneFinger = false;
                         isTwoFinger = true;
                         const t1 = touches[0];
@@ -103,11 +142,28 @@
                         const dy = t1.clientY - t2.clientY;
                         startDistance = Math.sqrt(dx * dx + dy * dy);
                         // Store current scale and position
-                        startScale = targetEl.object3D.scale.x; // uniform scale
+                        startScale = targetEl.object3D.scale.x; // uniform
                         const pos = targetEl.object3D.position;
                         startPosition.x = pos.x;
                         startPosition.y = pos.y;
                         startPosition.z = pos.z;
+
+                        // Compute midpoint screen and its projection on marker plane
+                        const midX = (t1.clientX + t2.clientX) / 2;
+                        const midY = (t1.clientY + t2.clientY) / 2;
+                        const markerPoint = screenToMarkerPlane(midX, midY);
+                        if (markerPoint) {
+                            initialMidpointMarker = markerPoint;
+                            // Compute local point in object's space: L = (M - P) / S
+                            const Lx = (markerPoint.x - startPosition.x) / startScale;
+                            const Ly = (markerPoint.y - startPosition.y) / startScale;
+                            const Lz = (0 - startPosition.z) / startScale; // object's Z is always 0 in marker space
+                            initialLocalPoint = { x: Lx, y: Ly, z: Lz };
+                        } else {
+                            // Fallback: use object's origin as reference
+                            initialMidpointMarker = { x: startPosition.x, y: startPosition.y };
+                            initialLocalPoint = { x: 0, y: 0, z: 0 };
+                        }
                     }
                 }
 
@@ -116,16 +172,14 @@
                     const touches = e.touches;
 
                     if (isOneFinger && touches.length === 1) {
-                        // One-finger rotation
+                        // One‑finger rotation
                         const touch = touches[0];
                         const dx = touch.clientX - startTouch1.x;
                         const dy = touch.clientY - startTouch1.y;
 
-                        // Rotate around world Y (horizontal) and world X (vertical)
-                        targetEl.object3D.rotateOnWorldY(-dx * speedRot);  // negate for natural direction
+                        targetEl.object3D.rotateOnWorldY(-dx * speedRot);
                         targetEl.object3D.rotateOnWorldX(dy * speedRot);
 
-                        // Update start touch for continuous rotation
                         startTouch1.x = touch.clientX;
                         startTouch1.y = touch.clientY;
                     } 
@@ -133,42 +187,63 @@
                         const t1 = touches[0];
                         const t2 = touches[1];
 
-                        // --- Scale (pinch) ---
+                        // Current distance
                         const dx = t1.clientX - t2.clientX;
                         const dy = t1.clientY - t2.clientY;
                         const distance = Math.sqrt(dx * dx + dy * dy);
                         const scaleFactor = distance / startDistance;
                         let newScale = startScale * scaleFactor;
-                        // Clamp to reasonable values (min 0.01, max practically unlimited)
                         newScale = Math.max(0.01, Math.min(1e9, newScale));
-                        targetEl.object3D.scale.set(newScale, newScale, newScale);
 
-                        // --- Pan (move in screen plane) ---
+                        // Current midpoint screen
                         const midX = (t1.clientX + t2.clientX) / 2;
                         const midY = (t1.clientY + t2.clientY) / 2;
-                        const prevMidX = (startTouch1.x + startTouch2.x) / 2;
-                        const prevMidY = (startTouch1.y + startTouch2.y) / 2;
-                        const deltaX = midX - prevMidX;
-                        const deltaY = midY - prevMidY;
+                        const currentMidpointMarker = screenToMarkerPlane(midX, midY);
 
-                        // Move the object in world space (X right, Y up)
-                        targetEl.object3D.position.x = startPosition.x - deltaX * speedPan * newScale;
-                        targetEl.object3D.position.y = startPosition.y + deltaY * speedPan * newScale; // screen Y is opposite world Y, so add
+                        if (currentMidpointMarker && initialMidpointMarker && initialLocalPoint) {
+                            // Compute new position so that the initial local point ends up under the current midpoint
+                            // newPos = M_current - newScale * L_initial
+                            const newPosX = currentMidpointMarker.x - newScale * initialLocalPoint.x;
+                            const newPosY = currentMidpointMarker.y - newScale * initialLocalPoint.y;
+                            const newPosZ = 0 - newScale * initialLocalPoint.z; // object's Z stays 0 in marker space? Actually we want Z=0, but formula gives 0 - newScale * 0 = 0, so fine.
 
-                        // Z remains 0 (plane of marker)
+                            targetEl.object3D.position.set(newPosX, newPosY, newPosZ);
+                            targetEl.object3D.scale.set(newScale, newScale, newScale);
+                        } else {
+                            // Fallback: simple scale + translate based on screen delta
+                            const midDeltaX = midX - (startTouch1.x + startTouch2.x) / 2;
+                            const midDeltaY = midY - (startTouch1.y + startTouch2.y) / 2;
+                            const panSpeed = 0.001;
+                            targetEl.object3D.position.x = startPosition.x - midDeltaX * panSpeed * newScale;
+                            targetEl.object3D.position.y = startPosition.y + midDeltaY * panSpeed * newScale;
+                            targetEl.object3D.scale.set(newScale, newScale, newScale);
+                        }
+
+                        // Update start values for next move? For continuous two‑finger, we want to keep the initial reference fixed,
+                        // so we do NOT update startScale or startPosition here. The gesture is based on the initial touchstart.
+                        // But we do need to update startDistance so that the next move uses the new distance as baseline? No,
+                        // we keep the original startDistance to compute scaleFactor relative to the initial pinch.
+                        // However, if we want the zoom to feel continuous, we can update startDistance and startScale each frame,
+                        // but then the fixed‑point formula would need to also update the local point. The simpler and more robust
+                        // method is to keep the initial values and compute everything relative to them. This ensures the point
+                        // under the fingers stays fixed throughout the gesture.
+                        // So we do nothing here.
                     }
                 }
 
                 function onTouchEnd(e) {
                     const touches = e.touches;
                     if (touches.length === 0) {
-                        // No fingers left
                         isOneFinger = false;
                         isTwoFinger = false;
+                        initialMidpointMarker = null;
+                        initialLocalPoint = null;
                     } else if (touches.length === 1) {
-                        // Transition from two-finger to one-finger – reset to avoid confusion
+                        // Transition – reset
                         isOneFinger = false;
                         isTwoFinger = false;
+                        initialMidpointMarker = null;
+                        initialLocalPoint = null;
                     }
                 }
             }
