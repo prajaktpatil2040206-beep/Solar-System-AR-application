@@ -135,20 +135,26 @@
     <!-- Toggle button (visible when panel hidden) -->
     <button id="toggle-info">🌍 Show Planet Info</button>
 
-    <!-- Gesture handler (full 3D rotation & zoom) -->
+    <!-- Robust gesture handler for scaling and rotation -->
     <script>
         AFRAME.registerComponent('gesture-control', {
             init: function () {
                 const targetEl = document.getElementById('planet-system');
-                if (!targetEl) return;
+                if (!targetEl) {
+                    console.warn('planet-system not found');
+                    return;
+                }
 
                 const THREE = AFRAME.THREE;
                 let scale = 1;
                 let startDistance = 0;
-                let lastTouchCenter = { x: 0, y: 0 };
+                let lastTouchCenter = null;
                 let isPinching = false;
+                let startScale = 1;
 
+                // Ensure initial position and scale
                 targetEl.object3D.position.set(0, 0, 0);
+                targetEl.object3D.scale.set(1, 1, 1);
 
                 const canvas = this.el.canvas;
                 canvas.addEventListener('touchstart', onTouchStart, { passive: false });
@@ -170,8 +176,7 @@
                             y: (t1.clientY + t2.clientY) / 2,
                             angle: Math.atan2(dy, dx)
                         };
-                        this.startScale = scale;
-                        this.startPos = targetEl.object3D.position.clone();
+                        startScale = scale;
                     }
                 }
 
@@ -185,11 +190,13 @@
                     const dy = t1.clientY - t2.clientY;
                     const distance = Math.sqrt(dx * dx + dy * dy);
 
+                    // Scale
                     const scaleFactor = distance / startDistance;
-                    scale = this.startScale * scaleFactor;
+                    scale = startScale * scaleFactor;
                     scale = Math.max(0.2, Math.min(20, scale));
                     targetEl.object3D.scale.set(scale, scale, scale);
 
+                    // Rotation based on center movement
                     const centerX = (t1.clientX + t2.clientX) / 2;
                     const centerY = (t1.clientY + t2.clientY) / 2;
                     if (lastTouchCenter) {
@@ -197,13 +204,15 @@
                         const deltaY = centerY - lastTouchCenter.y;
                         const rotSpeed = 0.008;
 
+                        // Apply rotations around world axes
                         if (Math.abs(deltaX) > 0.5) {
-                            targetEl.object3D.rotateY(deltaX * rotSpeed);
+                            targetEl.object3D.rotateY(deltaX * rotSpeed); // yaw
                         }
                         if (Math.abs(deltaY) > 0.5) {
-                            targetEl.object3D.rotateX(deltaY * rotSpeed);
+                            targetEl.object3D.rotateX(deltaY * rotSpeed); // pitch
                         }
 
+                        // Small roll from finger twist
                         const currentAngle = Math.atan2(dy, dx);
                         const deltaAngle = currentAngle - lastTouchCenter.angle;
                         if (Math.abs(deltaAngle) > 0.01) {
@@ -211,19 +220,8 @@
                         }
                         lastTouchCenter.angle = currentAngle;
                     }
-
-                    const midOffsetX = centerX - lastTouchCenter.x;
-                    const midOffsetY = centerY - lastTouchCenter.y;
-                    const moveSpeed = 0.001 * scale;
-                    targetEl.object3D.position.x -= midOffsetX * moveSpeed;
-                    targetEl.object3D.position.y += midOffsetY * moveSpeed;
-                    targetEl.object3D.position.x = Math.max(-2, Math.min(2, targetEl.object3D.position.x));
-                    targetEl.object3D.position.y = Math.max(-2, Math.min(2, targetEl.object3D.position.y));
-                    targetEl.object3D.position.z = 0;
-
                     lastTouchCenter.x = centerX;
                     lastTouchCenter.y = centerY;
-                    startDistance = distance;
                 }
 
                 function onTouchEnd(e) {
@@ -249,7 +247,7 @@
             <a-light type="ambient" color="#ffffff" intensity="0.3"></a-light>
             <a-light type="point" intensity="2" position="0 0 0" color="#ffaa00"></a-light>
 
-            <!-- Planet system container (planet + moons) -->
+            <!-- Planet system container (will be transformed) -->
             <a-entity id="planet-system"></a-entity>
         </a-marker>
     </a-scene>
@@ -325,7 +323,6 @@
                     moons: 79,
                     texture: 'jupiter.jpg',
                     ring: false,
-                    // Show 4 Galilean moons
                     moonList: [
                         { name: 'Io', radius: 0.07, distance: 0.5, color: '#ffa500', speed: 2000 },
                         { name: 'Europa', radius: 0.06, distance: 0.65, color: '#c0c0c0', speed: 3000 },
@@ -389,15 +386,13 @@
                 return;
             }
 
-            // Create the planet system container
-            const systemEl = document.createElement('a-entity');
-            systemEl.setAttribute('id', 'planet-system-inner');
+            // Create the planet system content (planet + moons)
+            // We'll add everything directly to planetSystem so that gestures affect all.
 
-            // --- Planet ---
+            // Planet sphere (with self-rotation)
             const planetEntity = document.createElement('a-entity');
             planetEntity.setAttribute('position', '0 0 0');
 
-            // Planet sphere
             const sphere = document.createElement('a-sphere');
             sphere.setAttribute('radius', '0.25');
             sphere.setAttribute('material', `src: url(images/${data.texture});`);
@@ -415,27 +410,27 @@
                 planetEntity.appendChild(ring);
             }
 
-            systemEl.appendChild(planetEntity);
+            planetSystem.appendChild(planetEntity);
 
-            // --- Moons ---
+            // Moons
             data.moonList.forEach(moon => {
+                // Container that rotates around planet
                 const moonOrbit = document.createElement('a-entity');
                 moonOrbit.setAttribute('position', '0 0 0');
-                // Orbit animation around planet (Y axis)
                 moonOrbit.setAttribute('animation', `property: rotation; to: 0 360 0; dur: ${moon.speed * 2}; easing: linear; repeat: indefinite`);
 
                 const moonSphere = document.createElement('a-sphere');
                 moonSphere.setAttribute('radius', moon.radius);
                 moonSphere.setAttribute('material', `color: ${moon.color}`);
                 moonSphere.setAttribute('position', `${moon.distance} 0 0`);
-                // Moon also spins on its own axis (optional)
+                // Moon self-spin
                 moonSphere.setAttribute('animation', `property: rotation; to: 0 360 0; dur: 4000; easing: linear; repeat: indefinite`);
 
                 moonOrbit.appendChild(moonSphere);
-                systemEl.appendChild(moonOrbit);
+                planetSystem.appendChild(moonOrbit);
             });
 
-            // Add some stars around (decorative)
+            // Decorative stars around the planet (static relative to planet)
             const stars = document.createElement('a-entity');
             stars.setAttribute('position', '0 0 0');
             for (let i = 0; i < 10; i++) {
@@ -447,9 +442,7 @@
                 star.setAttribute('position', `${Math.cos(angle)*rad} ${Math.sin(angle)*0.5} ${Math.sin(angle)*rad}`);
                 stars.appendChild(star);
             }
-            systemEl.appendChild(stars);
-
-            planetSystem.appendChild(systemEl);
+            planetSystem.appendChild(stars);
 
             // Build info panel
             infoPanel.innerHTML = `
