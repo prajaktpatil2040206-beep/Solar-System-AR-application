@@ -1,40 +1,64 @@
-// Import Three.js and OrbitControls from CDN
 import * as THREE from "https://unpkg.com/three@0.127.0/build/three.module.js";
-import { OrbitControls } from "https://unpkg.com/three@0.127.0/examples/jsm/controls/OrbitControls.js";
 
-// --- LIVE CAMERA BACKGROUND SETUP ---
-// Create a video element and stream webcam into it
-const video = document.createElement('video');
-video.autoplay = true;
-video.muted = true; // required for autoplay in some browsers
-video.playsInline = true;
-
-// Request webcam access
-navigator.mediaDevices.getUserMedia({ video: true })
-  .then(stream => {
-    video.srcObject = stream;
-    video.play();
-  })
-  .catch(err => {
-    console.error('Camera access denied or not available. Using fallback color background.', err);
-    // fallback: set a color background later in the code
-  });
-
-// --- RENDERER ---
-const renderer = new THREE.WebGLRenderer();
+// --- SETUP RENDERER, SCENE, CAMERA (AR.js will update projection) ---
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
 document.body.appendChild(renderer.domElement);
 
-// GUI options
-const options = {
-  "Real view": true,
-  "Show path": true,
-  speed: 1,
-  isPaused: false,
-  "Dark Mode": true
-};
+const scene = new THREE.Scene();
+// Camera will be controlled by AR.js – use a basic THREE.Camera
+const camera = new THREE.Camera();
+scene.add(camera);
 
-// Load textures for all celestial bodies
+// --- AR.js CONTEXT ---
+// Use default camera parameters from AR.js CDN
+const ar = new ARjs.Context(renderer, camera, {
+  cameraParametersUrl: 'https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/data/camera_para.dat',
+  detectionMode: 'mono',
+});
+
+// Initialize AR (this requests camera access and sets up tracking)
+await ar.initialize();
+ar.start();
+
+// --- CREATE ROOT FOR THE MARKER ---
+const markerRoot = new THREE.Group();
+scene.add(markerRoot);
+
+// Marker controls for Hiro pattern
+const markerControls = new ARjs.MarkerControls(ar, markerRoot, {
+  type: 'pattern',
+  patternUrl: ARjs.Pattern.Hiro,  // built-in Hiro pattern
+  changeMatrixMode: 'modelViewMatrix' // ensures correct placement
+});
+
+// --- SOLAR SYSTEM GROUP (will be added to markerRoot when marker is found) ---
+const solarSystemGroup = new THREE.Group();
+// Scale the whole system to fit nicely on the marker (original units too large)
+// Factor 0.02 makes Neptune orbit ~4 units, sun radius ~0.3 – good visibility
+solarSystemGroup.scale.set(0.02, 0.02, 0.02);
+solarSystemGroup.visible = false; // hidden until marker detected
+markerRoot.add(solarSystemGroup);
+
+// Show/hide based on marker detection
+markerControls.addEventListener('markerFound', () => {
+  solarSystemGroup.visible = true;
+});
+markerControls.addEventListener('markerLost', () => {
+  solarSystemGroup.visible = false;
+});
+
+// --- LIGHTS ---
+// Ambient light (global)
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+scene.add(ambientLight);
+
+// Sun light – point light at sun position (will be added to solarSystemGroup later)
+const sunLight = new THREE.PointLight(0xffffff, 4, 0, 0); // no decay
+// (added to sun mesh in planet creation)
+
+// --- TEXTURE LOADER ---
 const textureLoader = new THREE.TextureLoader();
 const sunTexture = textureLoader.load('images/sun.jpg');
 const mercuryTexture = textureLoader.load('images/mercury.jpg');
@@ -48,105 +72,133 @@ const neptuneTexture = textureLoader.load('images/neptune.jpg');
 const saturnRingTexture = textureLoader.load('images/saturn_ring.png');
 const uranusRingTexture = textureLoader.load('images/uranus_ring.png');
 
-// Create the scene
-const scene = new THREE.Scene();
-
-// Set background to video texture if camera available, else a dark color
-const videoTexture = new THREE.VideoTexture(video);
-// We'll assign background after camera is ready; for now set a placeholder
-scene.background = new THREE.Color(0x111122);
-
-// Once video metadata is loaded, switch to video texture
-video.addEventListener('loadeddata', () => {
-  scene.background = videoTexture;
-});
-
-// Set up the camera (field of view, aspect ratio, near/far)
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.set(-50, 90, 150);
-
-// Add orbit controls for mouse interaction
-const orbit = new OrbitControls(camera, renderer.domElement);
-orbit.minDistance = 30;
-orbit.maxDistance = 500;
-orbit.enableDamping = true;
-orbit.dampingFactor = 0.05;
-
-// Create the sun using basic material and texture
+// --- CREATE SUN (add to solarSystemGroup) ---
 const sun = new THREE.Mesh(
   new THREE.SphereGeometry(15, 50, 50),
-  new THREE.MeshBasicMaterial({ map: sunTexture })
+  new THREE.MeshStandardMaterial({ map: sunTexture })
 );
-scene.add(sun);
+sun.position.set(0, 0, 0);
+solarSystemGroup.add(sun);
+// Add the point light as a child of sun so it moves with it
+sun.add(sunLight);
 
-// Add a point light at the sun's location
-const sunLight = new THREE.PointLight(0xffffff, 4, 300);
-scene.add(sunLight);
+// --- ARRAY TO HOLD PLANET DATA FOR ANIMATION & TOOLTIP ---
+const planets = [];
 
-// Add ambient light for general illumination
-const ambientLight = new THREE.AmbientLight(0xffffff, 0);
-scene.add(ambientLight);
-
-// Helper function to draw orbital paths
-const path_of_planets = [];
-function createLineLoopWithMesh(radius, isDark, width) {
-  const color = isDark ? 0xffffff : 0x333333;
-  const material = new THREE.LineBasicMaterial({ color, linewidth: width });
+// Helper to create orbital path (adds to solarSystemGroup)
+const pathOfPlanets = []; // store line loops for visibility toggling
+function createOrbitPath(radius, color) {
+  const material = new THREE.LineBasicMaterial({ color });
   const geometry = new THREE.BufferGeometry();
   const points = [];
-
   for (let i = 0; i <= 100; i++) {
     const angle = (i / 100) * Math.PI * 2;
     points.push(radius * Math.cos(angle), 0, radius * Math.sin(angle));
   }
-
-  geometry.setAttribute("position", new THREE.Float32BufferAttribute(points, 3));
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(points, 3));
   const loop = new THREE.LineLoop(geometry, material);
-  scene.add(loop);
-  path_of_planets.push(loop);
+  solarSystemGroup.add(loop);
+  return loop;
 }
 
-// Function to generate a planet with optional rings
-function genratePlanet(size, texture, x, ring) {
+// Helper to create a planet (with optional rings)
+function createPlanet(size, texture, distance, ring = null) {
   const geometry = new THREE.SphereGeometry(size, 50, 50);
   const material = new THREE.MeshStandardMaterial({ map: texture });
   const mesh = new THREE.Mesh(geometry, material);
 
-  const planetObj = new THREE.Object3D();
-  mesh.position.set(x, 0, 0);
-  planetObj.add(mesh);
+  const planetGroup = new THREE.Group();
+  mesh.position.set(distance, 0, 0);
+  planetGroup.add(mesh);
 
   if (ring) {
     const ringGeo = new THREE.RingGeometry(ring.innerRadius, ring.outerRadius, 32);
     const ringMat = new THREE.MeshBasicMaterial({ map: ring.ringmat, side: THREE.DoubleSide });
     const ringMesh = new THREE.Mesh(ringGeo, ringMat);
-    ringMesh.position.set(x, 0, 0);
+    ringMesh.position.set(distance, 0, 0);
     ringMesh.rotation.x = -0.5 * Math.PI;
-    planetObj.add(ringMesh);
+    planetGroup.add(ringMesh);
   }
 
-  scene.add(planetObj);
-  createLineLoopWithMesh(x, options["Dark Mode"], 3);
-
-  return { planetObj, planet: mesh };
+  solarSystemGroup.add(planetGroup);
+  return { group: planetGroup, mesh };
 }
 
-// List of planets with their properties
-const planets = [
-  { name: "Mercury", ...genratePlanet(3.2, mercuryTexture, 28), speedData: { orbitSpeed: 0.004, rotateSpeed: 0.004 } },
-  { name: "Venus", ...genratePlanet(5.8, venusTexture, 44), speedData: { orbitSpeed: 0.015, rotateSpeed: 0.002 } },
-  { name: "Earth", ...genratePlanet(6, earthTexture, 62), speedData: { orbitSpeed: 0.01, rotateSpeed: 0.02 } },
-  { name: "Mars", ...genratePlanet(4, marsTexture, 78), speedData: { orbitSpeed: 0.008, rotateSpeed: 0.018 } },
-  { name: "Jupiter", ...genratePlanet(12, jupiterTexture, 100), speedData: { orbitSpeed: 0.002, rotateSpeed: 0.04 } },
-  { name: "Saturn", ...genratePlanet(10, saturnTexture, 138, { innerRadius: 10, outerRadius: 20, ringmat: saturnRingTexture }), speedData: { orbitSpeed: 0.0009, rotateSpeed: 0.038 } },
-  { name: "Uranus", ...genratePlanet(7, uranusTexture, 176, { innerRadius: 7, outerRadius: 12, ringmat: uranusRingTexture }), speedData: { orbitSpeed: 0.0004, rotateSpeed: 0.03 } },
-  { name: "Neptune", ...genratePlanet(7, neptuneTexture, 200), speedData: { orbitSpeed: 0.0001, rotateSpeed: 0.032 } }
+// Create planets (using original sizes/distances; will be scaled by group)
+const planetData = [
+  { name: 'Mercury', size: 3.2, tex: mercuryTexture, dist: 28 },
+  { name: 'Venus',   size: 5.8, tex: venusTexture,   dist: 44 },
+  { name: 'Earth',   size: 6,   tex: earthTexture,   dist: 62 },
+  { name: 'Mars',    size: 4,   tex: marsTexture,    dist: 78 },
+  { name: 'Jupiter', size: 12,  tex: jupiterTexture, dist: 100 },
+  { name: 'Saturn',  size: 10,  tex: saturnTexture,  dist: 138, ring: { innerRadius: 10, outerRadius: 20, ringmat: saturnRingTexture } },
+  { name: 'Uranus',  size: 7,   tex: uranusTexture,  dist: 176, ring: { innerRadius: 7, outerRadius: 12, ringmat: uranusRingTexture } },
+  { name: 'Neptune', size: 7,   tex: neptuneTexture, dist: 200 }
 ];
 
-// Setup raycasting and tooltip for planet hover info
+planetData.forEach(data => {
+  const { group, mesh } = createPlanet(data.size, data.tex, data.dist, data.ring || null);
+  // Store for animation
+  planets.push({
+    name: data.name,
+    group,
+    mesh,
+    speedData: { orbitSpeed: 0.001, rotateSpeed: 0.01 } // default, will be adjusted
+  });
+  // Create orbit path with color based on dark mode (initially white if dark mode on)
+  const pathColor = options.DarkMode ? 0xffffff : 0x333333;
+  const path = createOrbitPath(data.dist, pathColor);
+  pathOfPlanets.push(path);
+});
+
+// Set custom speeds per planet (as in original)
+planets[0].speedData = { orbitSpeed: 0.004, rotateSpeed: 0.004 }; // Mercury
+planets[1].speedData = { orbitSpeed: 0.015, rotateSpeed: 0.002 }; // Venus
+planets[2].speedData = { orbitSpeed: 0.01, rotateSpeed: 0.02 };   // Earth
+planets[3].speedData = { orbitSpeed: 0.008, rotateSpeed: 0.018 }; // Mars
+planets[4].speedData = { orbitSpeed: 0.002, rotateSpeed: 0.04 };  // Jupiter
+planets[5].speedData = { orbitSpeed: 0.0009, rotateSpeed: 0.038 }; // Saturn
+planets[6].speedData = { orbitSpeed: 0.0004, rotateSpeed: 0.03 };  // Uranus
+planets[7].speedData = { orbitSpeed: 0.0001, rotateSpeed: 0.032 }; // Neptune
+
+// --- GUI OPTIONS ---
+const options = {
+  "Real view": true,   // toggles ambient light intensity
+  "Show path": true,
+  speed: 1,
+  isPaused: false,
+  "Dark Mode": true
+};
+
+// --- DAT.GUI ---
+const gui = new dat.GUI();
+gui.add(options, "Real view").onChange(val => ambientLight.intensity = val ? 0 : 0.5);
+gui.add(options, "Show path").onChange(val => pathOfPlanets.forEach(p => p.visible = val));
+gui.add(options, "isPaused").name("Pause Animation");
+gui.add(options, "Dark Mode").onChange(isDark => {
+  // Update path colors
+  pathOfPlanets.forEach((path, idx) => {
+    path.material.color.setHex(isDark ? 0xffffff : 0x333333);
+  });
+  // Update tooltip style (tooltip created below)
+  tooltip.style.color = isDark ? "white" : "black";
+  tooltip.style.background = isDark ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.8)";
+});
+gui.add(options, "speed", 0, 20);
+
+// Per‑planet speed folders
+planets.forEach(({ name, speedData }) => {
+  const folder = gui.addFolder(name);
+  folder.add(speedData, "orbitSpeed", 0, 0.05).name("Orbit Speed");
+  folder.add(speedData, "rotateSpeed", 0, 0.05).name("Self Rotation");
+  folder.open();
+});
+
+// --- TOOLTIP (hover info) ---
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 let mouseX = 0, mouseY = 0;
+
 const tooltip = document.createElement("div");
 tooltip.style.position = "absolute";
 tooltip.style.color = "white";
@@ -165,73 +217,59 @@ window.addEventListener("mousemove", (e) => {
   mouse.y = -(mouseY / window.innerHeight) * 2 + 1;
 });
 
-// dat.GUI controls
-const gui = new dat.GUI();
-
-// Dark Mode now only affects path colors and tooltip, not background
-gui.add(options, "Real view").onChange(e => ambientLight.intensity = e ? 0 : 0.5);
-gui.add(options, "Show path").onChange(e => path_of_planets.forEach(path => path.visible = e));
-gui.add(options, "isPaused").name("Pause Animation");
-gui.add(options, "Dark Mode").onChange((isDark) => {
-  // Update path colors
-  path_of_planets.forEach(p => scene.remove(p));
-  path_of_planets.length = 0;
-  planets.forEach(({ planetObj }) => createLineLoopWithMesh(planetObj.children[0].position.x, isDark, 3));
-  // Update tooltip style
-  tooltip.style.color = isDark ? "white" : "black";
-  tooltip.style.background = isDark ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.8)";
-});
-gui.add(options, "speed", 0, (new URL(window.location.href).searchParams.get("ms") * 1) || 20);
-
-// Add speed folders per planet
-planets.forEach(({ name, speedData }) => {
-  const folder = gui.addFolder(name);
-  folder.add(speedData, "orbitSpeed", 0, 0.05).name("Orbit Speed");
-  folder.add(speedData, "rotateSpeed", 0, 0.05).name("Self Rotation");
-});
-
-// Animation loop
+// --- ANIMATION LOOP ---
 const clock = new THREE.Clock();
+
 function animate() {
+  requestAnimationFrame(animate);
+
+  // Update AR tracking (updates camera projection and marker roots)
+  ar.update();
+
   const delta = clock.getDelta();
 
-  if (!options.isPaused) {
+  // Animate planets only if not paused and marker is visible (or even if not, but we can skip)
+  if (!options.isPaused && solarSystemGroup.visible) {
+    // Sun rotation
     sun.rotateY(delta * options.speed * 0.5);
-    planets.forEach(({ planetObj, planet, speedData }) => {
-      planetObj.rotateY(speedData.orbitSpeed * options.speed * delta * 60);
-      planet.rotateY(speedData.rotateSpeed * options.speed * delta * 60);
+
+    // Planets
+    planets.forEach(({ group, mesh, speedData }) => {
+      group.rotateY(speedData.orbitSpeed * options.speed * delta * 60);
+      mesh.rotateY(speedData.rotateSpeed * options.speed * delta * 60);
     });
   }
 
-  raycaster.setFromCamera(mouse, camera);
-  const intersects = raycaster.intersectObjects([sun, ...planets.map(p => p.planet)]);
-  if (intersects.length > 0) {
-    const intersected = intersects[0].object;
-    if (intersected === sun) {
-      tooltip.innerHTML = "Sun";
-    } else {
-      const hoveredPlanet = planets.find(p => p.planet === intersected);
-      if (hoveredPlanet) {
-        tooltip.innerHTML = hoveredPlanet.name;
+  // Raycasting for tooltip (only if group visible)
+  if (solarSystemGroup.visible) {
+    // Compile list of meshes to test (sun + planet meshes)
+    const testMeshes = [sun, ...planets.map(p => p.mesh)];
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObjects(testMeshes);
+
+    if (intersects.length > 0) {
+      const hit = intersects[0].object;
+      if (hit === sun) {
+        tooltip.innerHTML = "Sun";
+      } else {
+        const planet = planets.find(p => p.mesh === hit);
+        if (planet) tooltip.innerHTML = planet.name;
       }
+      tooltip.style.display = "block";
+      tooltip.style.left = (mouseX + 10) + "px";
+      tooltip.style.top = (mouseY + 10) + "px";
+    } else {
+      tooltip.style.display = "none";
     }
-    tooltip.style.display = "block";
-    tooltip.style.left = `${mouseX + 10}px`;
-    tooltip.style.top = `${mouseY + 10}px`;
   } else {
     tooltip.style.display = "none";
   }
 
-  // Ensure video texture updates (happens automatically)
-  orbit.update();
   renderer.render(scene, camera);
-  requestAnimationFrame(animate);
 }
 animate();
 
-// Handle window resizing
+// --- RESIZE HANDLER ---
 window.addEventListener("resize", () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
