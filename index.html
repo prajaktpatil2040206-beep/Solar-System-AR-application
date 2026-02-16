@@ -1,401 +1,103 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Realistic 3D Solar System - Enhanced Lighting & Shapes</title>
-    <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        #info {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            color: white;
-            background: rgba(0,0,0,0.6);
-            padding: 8px 20px;
-            border-radius: 30px;
-            backdrop-filter: blur(8px);
-            border: 1px solid rgba(255,255,255,0.2);
-            z-index: 100;
-            font-weight: 400;
-            letter-spacing: 0.5px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-        }
-        #controls-note {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            color: rgba(255,255,255,0.8);
-            background: rgba(0,0,0,0.4);
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 14px;
-            backdrop-filter: blur(5px);
-            border: 1px solid rgba(255,255,255,0.15);
-        }
-        .instruction {
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            color: rgba(255,255,255,0.6);
-            background: rgba(0,0,0,0.3);
-            padding: 4px 12px;
-            border-radius: 16px;
-            font-size: 12px;
-            backdrop-filter: blur(3px);
-        }
-    </style>
+  <!-- Meta information for proper rendering and responsiveness -->
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <!-- Title of the browser tab -->
+  <title>Solar System Simulation</title>
+
+  <!-- Basic styling for full-screen canvas and GUI panel -->
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+    }
+  
+    canvas {
+      display: block;
+    }
+  
+    /* Stylish GUI Panel */
+    .dg.ac {
+      position: fixed !important;
+      top: 10px !important;
+      left: 10px !important;  
+      right: auto !important;
+      z-index: 9999 !important;
+      border-radius: 10px;
+      overflow: visible;
+      font-family: 'Segoe UI', sans-serif;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+      backdrop-filter: blur(5px);
+      transition: all 0.3s ease;
+    }
+  
+    /* Light mode style */
+    body.light-mode .dg.ac {
+      background: #f9f9f9 !important;
+      color: #111 !important;
+    }
+  
+    body.light-mode .dg .cr {
+      background: #fff !important;
+      border-bottom: 1px solid #ddd !important;
+      color: #000 !important;
+    }
+  
+    body.light-mode .dg .cr input {
+      background: #eee !important;
+      color: #000 !important;
+    }
+  
+    body.light-mode .dg .title {
+      background: #e0e0e0 !important;
+      color: #111 !important;
+      font-weight: bold;
+    }
+  
+    /* Dark mode style */
+    body:not(.light-mode) .dg.ac {
+      background: #1e1e1e !important;
+      color: #fff !important;
+    }
+  
+    body:not(.light-mode) .dg .cr {
+      background: #2a2a2a !important;
+      border-bottom: 1px solid #444 !important;
+      color: #fff !important;
+    }
+  
+    body:not(.light-mode) .dg .cr input {
+      background: #333 !important;
+      color: #fff !important;
+    }
+  
+    body:not(.light-mode) .dg .title {
+      background: #2c2c2c !important;
+      color: #fff !important;
+      font-weight: bold;
+    }
+  
+    /* Rounded folder toggle arrows */
+    .dg .title::before {
+      border-color: currentColor transparent transparent transparent;
+    }
+  
+    /* Padding inside controllers */
+    .dg .cr {
+      padding: 6px 10px;
+    }
+  </style>
+  
 </head>
+
 <body>
-    <div id="info">🌠 PROFESSIONAL SOLAR SYSTEM • REALISTIC LIGHTING • ROUND ASTEROIDS</div>
-    <div id="controls-note">🪐 ZOOM: scroll • ROTATE: drag • PAN: right-click</div>
-    <div class="instruction">✨ Planets are fully textured & illuminated by the Sun</div>
+  <!-- Load dat.GUI library for control panel -->
+  <script src="https://cdn.jsdelivr.net/npm/dat.gui@0.7.9/build/dat.gui.min.js"></script>
 
-    <!-- Import Three.js and OrbitControls -->
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://unpkg.com/three@0.128.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.128.0/examples/jsm/"
-            }
-        }
-    </script>
-
-    <script type="module">
-        import * as THREE from 'three';
-        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-
-        // --- SCENE ---
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x03030f); // deeper space
-
-        // --- CAMERA ---
-        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(20, 15, 60);
-        camera.lookAt(0, 0, 0);
-
-        // --- RENDERER ---
-        const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.shadowMap.enabled = false; // keep performance high, shadows are costly here
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        renderer.toneMappingExposure = 1.4;
-        document.body.appendChild(renderer.domElement);
-
-        // --- CONTROLS ---
-        const controls = new OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-        controls.dampingFactor = 0.06;
-        controls.autoRotate = false;
-        controls.enableZoom = true;
-        controls.maxDistance = 200;
-        controls.minDistance = 8;
-        controls.rotateSpeed = 0.5;
-        controls.target.set(0, 0, 0);
-
-        // --- LIGHTING (professional setup) ---
-        // Ambient base to avoid pure black shadows
-        const ambientLight = new THREE.AmbientLight(0x40406b, 1.2); // brighter and slightly blue
-        scene.add(ambientLight);
-
-        // Main light source: Sun (point light at center)
-        const sunLight = new THREE.PointLight(0xffeedd, 3.5, 0, 2);
-        sunLight.position.set(0, 0, 0);
-        scene.add(sunLight);
-
-        // Additional directional light to emphasize planet details from an angle (simulate starfield fill)
-        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        dirLight.position.set(10, 20, 15);
-        scene.add(dirLight);
-
-        // A second subtle fill from opposite side
-        const fillLight = new THREE.DirectionalLight(0xccddff, 0.3);
-        fillLight.position.set(-15, 5, -20);
-        scene.add(fillLight);
-
-        // A hemisphere light for sky/ground bounce
-        const hemiLight = new THREE.HemisphereLight(0x445566, 0x221111, 0.9);
-        scene.add(hemiLight);
-
-        // --- STARFIELD BACKGROUND (dense and varied) ---
-        const starsGeometry = new THREE.BufferGeometry();
-        const starsCount = 8000;
-        const starsPositions = new Float32Array(starsCount * 3);
-        const starsColors = new Float32Array(starsCount * 3); // subtle color variation
-        for (let i = 0; i < starsCount; i++) {
-            const r = 300 + Math.random() * 400; // spread far
-            const theta = Math.random() * Math.PI * 2;
-            const phi = Math.acos(2 * Math.random() - 1);
-            starsPositions[i*3] = r * Math.sin(phi) * Math.cos(theta);
-            starsPositions[i*3+1] = r * Math.sin(phi) * Math.sin(theta);
-            starsPositions[i*3+2] = r * Math.cos(phi);
-            
-            // slight color tint
-            const tint = 0.8 + Math.random() * 0.4;
-            starsColors[i*3] = tint * (0.8 + Math.random()*0.2);
-            starsColors[i*3+1] = tint * (0.7 + Math.random()*0.3);
-            starsColors[i*3+2] = 1.0;
-        }
-        starsGeometry.setAttribute('position', new THREE.BufferAttribute(starsPositions, 3));
-        starsGeometry.setAttribute('color', new THREE.BufferAttribute(starsColors, 3));
-        const starsMaterial = new THREE.PointsMaterial({ 
-            size: 0.5, 
-            vertexColors: true,
-            transparent: true,
-            opacity: 0.9,
-            blending: THREE.AdditiveBlending
-        });
-        const stars = new THREE.Points(starsGeometry, starsMaterial);
-        scene.add(stars);
-
-        // --- TEXTURE LOADER with error recovery ---
-        const loader = new THREE.TextureLoader();
-        // Using reliable Solar System Scope CDN
-        const baseURL = 'https://www.solarsystemscope.com/textures/planets/';
-        
-        function loadTextureOrColor(url, fallbackColor) {
-            // Return a texture; if fails, we'll use a colored material later
-            return loader.load(url, undefined, undefined, (err) => {
-                console.warn(`Texture load failed: ${url}`, err.message);
-            });
-        }
-
-        // --- CREATE THE SUN (emissive) ---
-        const sunGeometry = new THREE.SphereGeometry(5.2, 128, 128); // high-res
-        const sunTexture = loadTextureOrColor(baseURL + '2k_sun.jpg', 0xffaa33);
-        const sunMaterial = new THREE.MeshStandardMaterial({
-            map: sunTexture,
-            emissive: new THREE.Color(0xffaa33),
-            emissiveIntensity: 2.0,
-            roughness: 0.3
-        });
-        const sun = new THREE.Mesh(sunGeometry, sunMaterial);
-        scene.add(sun);
-
-        // Add a small point light inside sun for extra glow
-        const coreGlow = new THREE.PointLight(0xffaa55, 2.5, 40);
-        coreGlow.position.set(0,0,0);
-        scene.add(coreGlow);
-
-        // --- PLANET DATA (scaled for visibility) ---
-        const planetsInfo = [
-            { name: 'Mercury', size: 0.9, distance: 9, speed: 0.022, color: 0xaaaaaa, texture: '2k_mercury.jpg' },
-            { name: 'Venus',   size: 1.1, distance: 13, speed: 0.017, color: 0xffcc88, texture: '2k_venus_surface.jpg' },
-            { name: 'Earth',   size: 1.15, distance: 17, speed: 0.013, color: 0x2288ff, texture: '2k_earth_daymap.jpg' },
-            { name: 'Mars',    size: 1.0, distance: 21, speed: 0.01, color: 0xcc5533, texture: '2k_mars.jpg' },
-            { name: 'Jupiter', size: 2.5, distance: 29, speed: 0.007, color: 0xddbb99, texture: '2k_jupiter.jpg' },
-            { name: 'Saturn',  size: 2.1, distance: 37, speed: 0.005, color: 0xeeddbb, texture: '2k_saturn.jpg', hasRings: true },
-            { name: 'Uranus',  size: 1.8, distance: 45, speed: 0.004, color: 0x88ccff, texture: '2k_uranus.jpg' },
-            { name: 'Neptune', size: 1.8, distance: 53, speed: 0.003, color: 0x3366ff, texture: '2k_neptune.jpg' }
-        ];
-
-        const planets = []; // for animation
-
-        // Helper to create orbit line
-        function createOrbit(radius, color = 0x88aaff) {
-            const points = [];
-            for (let i = 0; i <= 128; i++) {
-                const angle = (i / 128) * Math.PI * 2;
-                points.push(new THREE.Vector3(radius * Math.cos(angle), 0, radius * Math.sin(angle)));
-            }
-            const geo = new THREE.BufferGeometry().setFromPoints(points);
-            const mat = new THREE.LineBasicMaterial({ color: color, opacity: 0.3, transparent: true });
-            return new THREE.LineLoop(geo, mat);
-        }
-
-        // Create orbits and planets
-        planetsInfo.forEach((info, idx) => {
-            const orbitColor = idx % 2 === 0 ? 0x88aaff : 0xaaccff;
-            scene.add(createOrbit(info.distance, orbitColor));
-
-            // Group for revolution
-            const group = new THREE.Group();
-            
-            // Planet mesh
-            let material;
-            if (info.texture) {
-                const tex = loadTextureOrColor(baseURL + info.texture, info.color);
-                material = new THREE.MeshStandardMaterial({ 
-                    map: tex, 
-                    roughness: 0.6, 
-                    metalness: 0.1,
-                    emissive: 0x000000
-                });
-            } else {
-                material = new THREE.MeshStandardMaterial({ color: info.color, roughness: 0.5 });
-            }
-            
-            const geometry = new THREE.SphereGeometry(info.size, 64, 64);
-            const planetMesh = new THREE.Mesh(geometry, material);
-            planetMesh.position.x = info.distance;
-            planetMesh.castShadow = false;
-            planetMesh.receiveShadow = false;
-            planetMesh.userData.rotateSpeed = 0.005 + Math.random() * 0.01;
-            
-            group.add(planetMesh);
-
-            // Saturn's rings
-            if (info.hasRings) {
-                // Main ring
-                const ringGeo = new THREE.RingGeometry(info.size * 1.3, info.size * 2.4, 128);
-                // Try to load ring texture, fallback to color
-                const ringTex = loadTextureOrColor(baseURL + '2k_saturn_ring.png', null);
-                const ringMat = new THREE.MeshStandardMaterial({
-                    map: ringTex,
-                    color: 0xc2b280,
-                    side: THREE.DoubleSide,
-                    transparent: true,
-                    opacity: 0.7,
-                    emissive: 0x000000
-                });
-                const ring = new THREE.Mesh(ringGeo, ringMat);
-                ring.rotation.x = Math.PI / 2.2;
-                ring.rotation.z = 0.2;
-                ring.position.x = info.distance;
-                group.add(ring);
-
-                // Thinner inner ring
-                const ring2Geo = new THREE.RingGeometry(info.size * 1.5, info.size * 1.9, 128);
-                const ring2Mat = new THREE.MeshStandardMaterial({
-                    color: 0xaa9977,
-                    side: THREE.DoubleSide,
-                    transparent: true,
-                    opacity: 0.4
-                });
-                const ring2 = new THREE.Mesh(ring2Geo, ring2Mat);
-                ring2.rotation.x = Math.PI / 2.3;
-                ring2.rotation.z = 0.1;
-                ring2.position.x = info.distance;
-                group.add(ring2);
-            }
-
-            scene.add(group);
-            
-            planets.push({
-                group: group,
-                mesh: planetMesh,
-                revSpeed: info.speed,
-                distance: info.distance
-            });
-        });
-
-        // --- ASTEROID BELT (now with round particles) ---
-        // Create a canvas texture for a soft round dot
-        function createRoundParticleTexture() {
-            const canvas = document.createElement('canvas');
-            canvas.width = 32;
-            canvas.height = 32;
-            const ctx = canvas.getContext('2d');
-            ctx.fillStyle = '#aa8866';
-            ctx.beginPath();
-            ctx.arc(16, 16, 14, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.globalCompositeOperation = 'source-atop';
-            // Add subtle gradient for softness
-            const gradient = ctx.createRadialGradient(16, 16, 0, 16, 16, 14);
-            gradient.addColorStop(0, 'rgba(255,220,170,1)');
-            gradient.addColorStop(1, 'rgba(170,120,80,0.8)');
-            ctx.fillStyle = gradient;
-            ctx.fillRect(0, 0, 32, 32);
-            return new THREE.CanvasTexture(canvas);
-        }
-
-        const particleTexture = createRoundParticleTexture();
-
-        const asteroidCount = 2000;
-        const asteroidGeometry = new THREE.BufferGeometry();
-        const asteroidPositions = new Float32Array(asteroidCount * 3);
-        const asteroidColors = new Float32Array(asteroidCount * 3);
-        for (let i = 0; i < asteroidCount; i++) {
-            const r = 25 + Math.random() * 5; // distance range
-            const angle = Math.random() * Math.PI * 2;
-            const y = (Math.random() - 0.5) * 1.0;
-            asteroidPositions[i*3] = r * Math.cos(angle);
-            asteroidPositions[i*3+1] = y;
-            asteroidPositions[i*3+2] = r * Math.sin(angle);
-            
-            // random grey/brown colors
-            const gray = 0.5 + Math.random() * 0.5;
-            asteroidColors[i*3] = 0.8 + Math.random()*0.2;
-            asteroidColors[i*3+1] = 0.6 + Math.random()*0.4;
-            asteroidColors[i*3+2] = 0.4 + Math.random()*0.3;
-        }
-        asteroidGeometry.setAttribute('position', new THREE.BufferAttribute(asteroidPositions, 3));
-        asteroidGeometry.setAttribute('color', new THREE.BufferAttribute(asteroidColors, 3));
-        
-        const asteroidMaterial = new THREE.PointsMaterial({ 
-            map: particleTexture,
-            size: 0.4,
-            vertexColors: true,
-            transparent: true,
-            blending: THREE.NormalBlending,
-            depthWrite: true
-        });
-        const asteroidBelt = new THREE.Points(asteroidGeometry, asteroidMaterial);
-        scene.add(asteroidBelt);
-
-        // Add some distant small stars (tiny particles) for depth
-        const distantStarsGeo = new THREE.BufferGeometry();
-        const distantPos = new Float32Array(1500 * 3);
-        for (let i = 0; i < 1500; i++) {
-            distantPos[i*3] = (Math.random() - 0.5) * 600;
-            distantPos[i*3+1] = (Math.random() - 0.5) * 600;
-            distantPos[i*3+2] = (Math.random() - 0.5) * 600;
-        }
-        distantStarsGeo.setAttribute('position', new THREE.BufferAttribute(distantPos, 3));
-        const distantStarsMat = new THREE.PointsMaterial({ color: 0xaaccff, size: 0.15, transparent: true, opacity: 0.6 });
-        const distantStars = new THREE.Points(distantStarsGeo, distantStarsMat);
-        scene.add(distantStars);
-
-        // Add very subtle fog
-        scene.fog = new THREE.FogExp2(0x03030f, 0.0012);
-
-        // --- ANIMATION LOOP ---
-        const clock = new THREE.Clock();
-
-        function animate() {
-            const delta = clock.getDelta();
-            const elapsedTime = performance.now() / 1000;
-
-            // Rotate stars slowly
-            stars.rotation.y += 0.0001;
-            distantStars.rotation.y += 0.00005;
-
-            // Rotate sun
-            sun.rotation.y += 0.0008;
-
-            // Rotate asteroid belt
-            asteroidBelt.rotation.y += 0.0003;
-
-            // Update planets: revolution and axial rotation
-            planets.forEach(p => {
-                p.group.rotation.y += p.revSpeed * delta * 4; // revolution
-                if (p.mesh) {
-                    p.mesh.rotation.y += 0.008; // axial spin
-                }
-            });
-
-            controls.update();
-            renderer.render(scene, camera);
-            requestAnimationFrame(animate);
-        }
-
-        animate();
-
-        // --- RESIZE HANDLER ---
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
-
-        // --- INIT LOG ---
-        console.log('Enhanced Solar System ready — asteroids are round, lighting is professional.');
-    </script>
+  <!-- Load main JavaScript module containing the solar system code -->
+  <script type="module" src="script.js"></script>
 </body>
 </html>
