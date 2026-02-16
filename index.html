@@ -2,116 +2,58 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Three.js Hiro Sphere</title>
+    <title>Hiro Marker Detection</title>
 
-    <!-- Three.js -->
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+    <!-- A-Frame -->
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
 
-    <!-- AR.js for Three.js -->
-    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/three.js/build/ar-threex.js"></script>
+    <!-- AR.js -->
+    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
 
     <style>
         body { margin: 0; overflow: hidden; }
+        #message {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-family: Arial;
+            font-size: 18px;
+        }
     </style>
 </head>
 
 <body>
+
+<div id="message">Show Hiro Marker</div>
+
+<a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
+
+    <!-- Hiro Marker -->
+    <a-marker preset="hiro" id="hiroMarker">
+    </a-marker>
+
+    <!-- Camera -->
+    <a-entity camera></a-entity>
+
+</a-scene>
+
 <script>
-    let scene, camera, renderer;
-    let markerRoot;
-    let sphere;
+    const marker = document.querySelector("#hiroMarker");
+    const message = document.querySelector("#message");
 
-    // Scene
-    scene = new THREE.Scene();
-
-    // Camera
-    camera = new THREE.Camera();
-    scene.add(camera);
-
-    // Renderer
-    renderer = new THREE.WebGLRenderer({
-        antialias: true,
-        alpha: true
+    marker.addEventListener("markerFound", () => {
+        message.innerHTML = "✅ Hiro Marker Detected!";
     });
 
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.domElement.style.position = 'absolute';
-    renderer.domElement.style.top = '0px';
-    renderer.domElement.style.left = '0px';
-    document.body.appendChild(renderer.domElement);
-
-    // AR Toolkit Source (Webcam)
-    const arSource = new THREEx.ArToolkitSource({
-        sourceType: 'webcam'
+    marker.addEventListener("markerLost", () => {
+        message.innerHTML = "❌ Marker Lost — Show Hiro Marker";
     });
-
-    arSource.init(() => {
-        onResize();
-    });
-
-    window.addEventListener('resize', () => {
-        onResize();
-    });
-
-    function onResize() {
-        arSource.onResizeElement();
-        arSource.copyElementSizeTo(renderer.domElement);
-        if (arContext.arController !== null) {
-            arSource.copyElementSizeTo(arContext.arController.canvas);
-        }
-    }
-
-    // AR Toolkit Context
-    const arContext = new THREEx.ArToolkitContext({
-        cameraParametersUrl:
-            'https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/three.js/data/camera_para.dat',
-        detectionMode: 'mono'
-    });
-
-    arContext.init(() => {
-        camera.projectionMatrix.copy(arContext.getProjectionMatrix());
-    });
-
-    // Marker Root
-    markerRoot = new THREE.Group();
-    scene.add(markerRoot);
-
-    // Hiro Marker
-    new THREEx.ArMarkerControls(arContext, markerRoot, {
-        type: 'pattern',
-        patternUrl:
-            'https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/three.js/data/patt.hiro'
-    });
-
-    // Light
-    const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
-    scene.add(light);
-
-    // Sphere
-    const geometry = new THREE.SphereGeometry(0.5, 32, 32);
-    const material = new THREE.MeshStandardMaterial({
-        color: 0x00aaff
-    });
-
-    sphere = new THREE.Mesh(geometry, material);
-    sphere.position.y = 0.5;
-
-    markerRoot.add(sphere);
-
-    // Animation Loop
-    function animate() {
-        requestAnimationFrame(animate);
-
-        if (arSource.ready !== false)
-            arContext.update(arSource.domElement);
-
-        sphere.rotation.y += 0.02;
-
-        renderer.render(scene, camera);
-    }
-
-    animate();
 </script>
+
 </body>
 </html>
-
