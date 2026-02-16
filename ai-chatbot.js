@@ -1,7 +1,7 @@
 // ai-chatbot.js – Space AI Assistant (Gemini 2.0 Flash, header auth)
 
 (function() {
-    const API_KEY = 'AIzaSyA2pNbhgkjz4qzKKnuzxCUx6wq2ugRqEms';
+    const API_KEY = 'AIzaSyBvX3DblO1_ELqWo07F5r5rDXhxBPqRqWk';
     const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
     // Inject styles (same as before)
