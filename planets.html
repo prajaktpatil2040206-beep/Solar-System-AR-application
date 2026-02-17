@@ -1,7 +1,7 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <meta charset="utf-8">
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
     <title>Choose a Planet</title>
     <!-- Font Awesome for icons -->
@@ -22,13 +22,14 @@
             width: 100vw;
         }
 
-        /* Fixed back button (visible on all cards) */
+        /* Fixed back button (always visible) */
         .back-btn-fixed {
             position: fixed;
             top: 20px;
             left: 20px;
             background: rgba(0, 0, 0, 0.6);
             backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
             color: white;
             padding: 10px 20px;
             border-radius: 40px;
@@ -47,7 +48,7 @@
             box-shadow: 0 0 30px #0ff;
         }
 
-        /* Horizontal scroll container */
+        /* Horizontal scroll container (carousel) */
         .carousel {
             display: flex;
             overflow-x: auto;
@@ -62,7 +63,7 @@
             display: none; /* Chrome/Safari */
         }
 
-        /* Each planet card takes full viewport */
+        /* Each planet card fills the viewport */
         .planet-card {
             flex: 0 0 100vw;
             scroll-snap-align: start;
@@ -73,10 +74,10 @@
             padding: 20px;
             background: radial-gradient(circle at 20% 30%, rgba(0, 40, 80, 0.8), #0a0f1e);
             position: relative;
-            overflow-y: auto; /* allow scrolling if content overflows */
+            overflow-y: auto; /* allow internal scroll if content overflows */
         }
 
-        /* Content container (glass panel) */
+        /* Glass‑morphism content panel */
         .card-content {
             background: rgba(20, 30, 50, 0.5);
             backdrop-filter: blur(15px);
@@ -84,16 +85,16 @@
             border: 2px solid rgba(0, 255, 255, 0.3);
             border-radius: 40px;
             padding: 30px 25px;
-            max-width: 500px;
+            max-width: 550px;
             width: 100%;
             box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5), inset 0 0 40px rgba(0, 255, 255, 0.2);
             text-align: center;
         }
 
-        /* Planet image in a circle */
+        /* Circular planet image with neon glow */
         .planet-image {
-            width: 180px;
-            height: 180px;
+            width: min(180px, 30vw);
+            height: min(180px, 30vw);
             border-radius: 50%;
             object-fit: cover;
             border: 4px solid #0ff;
@@ -104,29 +105,31 @@
 
         .planet-name {
             font-family: 'Orbitron', sans-serif;
-            font-size: 3rem;
+            font-size: clamp(2rem, 8vw, 3.5rem);
             font-weight: 700;
             margin-bottom: 10px;
             text-transform: uppercase;
             background: linear-gradient(45deg, #fff, #aaddff);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+            background-clip: text;
             text-shadow: 0 0 20px cyan;
         }
 
         .planet-details {
-            font-size: 1.2rem;
+            font-size: clamp(1rem, 4vw, 1.3rem);
             margin: 15px 0;
             line-height: 1.6;
             color: rgba(255,255,255,0.9);
         }
 
         .planet-details p {
-            margin: 8px 0;
+            margin: 10px 0;
             display: flex;
             align-items: center;
             gap: 10px;
             justify-content: center;
+            flex-wrap: wrap;
         }
 
         .planet-details i {
@@ -135,11 +138,21 @@
             font-size: 1.3rem;
         }
 
+        /* Description text */
+        .planet-description {
+            font-style: italic;
+            margin-top: 15px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 20px;
+            border-left: 3px solid #0ff;
+        }
+
         /* Button group */
         .button-group {
             display: flex;
             justify-content: center;
-            gap: 20px;
+            gap: 15px;
             margin-top: 25px;
             flex-wrap: wrap;
         }
@@ -147,18 +160,19 @@
         .btn {
             background: rgba(0, 0, 0, 0.5);
             backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
             border: 2px solid #0ff;
             border-radius: 50px;
-            padding: 12px 30px;
+            padding: 12px 25px;
             font-family: 'Orbitron', sans-serif;
-            font-size: 1.3rem;
+            font-size: clamp(1rem, 4vw, 1.3rem);
             font-weight: 600;
             color: white;
             cursor: pointer;
             transition: 0.3s;
             display: inline-flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
             text-decoration: none;
             box-shadow: 0 0 20px #0ff;
         }
@@ -177,41 +191,17 @@
             box-shadow: 0 0 40px #f0f;
         }
 
-        /* AI Chatbot container (repositioned) */
-        .chatbot-container {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            z-index: 2000;
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background: rgba(0, 255, 255, 0.2);
-            backdrop-filter: blur(10px);
-            border: 2px solid #0ff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: 0.3s;
-            box-shadow: 0 0 20px #0ff;
-        }
-        .chatbot-container:hover {
-            transform: scale(1.1);
-            background: rgba(0, 255, 255, 0.4);
-        }
-        .chatbot-container i {
-            font-size: 2rem;
-            color: white;
-        }
-        /* The actual chatbot script will attach to this element? We'll just keep the script include, it probably creates its own. But to be safe, we'll keep the original script tag. */
-
-        /* Responsive adjustments */
-        @media (max-width: 600px) {
-            .planet-name { font-size: 2.2rem; }
-            .planet-image { width: 130px; height: 130px; }
-            .btn { font-size: 1rem; padding: 8px 20px; }
-            .card-content { padding: 20px; }
+        /* Responsive adjustments for very small screens */
+        @media (max-width: 480px) {
+            .card-content {
+                padding: 20px 15px;
+            }
+            .btn {
+                padding: 10px 18px;
+            }
+            .planet-details p {
+                gap: 5px;
+            }
         }
     </style>
 </head>
@@ -222,13 +212,8 @@
     <!-- Horizontal carousel -->
     <div class="carousel" id="carousel"></div>
 
-    <!-- Chatbot floating icon (the script will likely inject its own, but we provide a container) -->
-    <div class="chatbot-container" id="chatbot-icon">
-        <i class="fas fa-robot"></i>
-    </div>
-
     <script>
-        // Enhanced planet data with more info and descriptions
+        // Enhanced planet data with more details
         const planets = [
             { 
                 name: 'Mercury', 
@@ -316,14 +301,14 @@
 
         const carousel = document.getElementById('carousel');
 
-        // Build cards
+        // Build each card
         planets.forEach((p, index) => {
             const card = document.createElement('div');
             card.className = 'planet-card';
 
             // Fallback image if texture missing
             const imgSrc = `images/${p.texture}`;
-            const fallbackSrc = `https://via.placeholder.com/180?text=${p.name}`;
+            const fallbackSrc = `https://via.placeholder.com/400?text=${p.name}`;
 
             card.innerHTML = `
                 <div class="card-content">
@@ -331,11 +316,11 @@
                     <div class="planet-name">${p.name}</div>
                     <div class="planet-details">
                         <p><i class="fas fa-ruler"></i> Diameter: ${p.diameter}</p>
-                        <p><i class="fas fa-sun"></i> Distance from Sun: ${p.distance}</p>
+                        <p><i class="fas fa-sun"></i> Distance: ${p.distance}</p>
                         <p><i class="fas fa-thermometer-half"></i> Temperature: ${p.temperature}</p>
                         <p><i class="fas fa-moon"></i> Moons: ${p.moons}</p>
-                        <p><i class="fas fa-clock"></i> Orbit period: ${p.orbitPeriod}</p>
-                        <p style="font-style: italic; margin-top: 15px;">"${p.description}"</p>
+                        <p><i class="fas fa-clock"></i> Orbit: ${p.orbitPeriod}</p>
+                        <div class="planet-description"><i class="fas fa-quote-left"></i> ${p.description}</div>
                     </div>
                     <div class="button-group">
                         <a class="btn" href="planet.html?name=${p.name.toLowerCase()}"><i class="fas fa-vr-cardboard"></i> Show in AR</a>
@@ -349,27 +334,27 @@
         // Add event listeners for speaker buttons
         document.querySelectorAll('.speaker').forEach(btn => {
             btn.addEventListener('click', (e) => {
+                e.stopPropagation();
                 const index = e.currentTarget.dataset.index;
                 const planet = planets[index];
-                // Construct a friendly description
-                const text = `${planet.name}. Diameter ${planet.diameter}. Distance from Sun ${planet.distance}. Temperature ${planet.temperature}. Moons: ${planet.moons}. Orbit period: ${planet.orbitPeriod}. ${planet.description}`;
+                // Build a natural‑sounding description
+                const text = `${planet.name}. Diameter ${planet.diameter}. Distance from the Sun: ${planet.distance}. Average temperature: ${planet.temperature}. Number of moons: ${planet.moons}. Orbit period: ${planet.orbitPeriod}. ${planet.description}`;
                 
-                // Use Web Speech API
                 if ('speechSynthesis' in window) {
-                    window.speechSynthesis.cancel(); // stop any ongoing
+                    window.speechSynthesis.cancel(); // stop any ongoing speech
                     const utterance = new SpeechSynthesisUtterance(text);
                     utterance.rate = 0.9;
-                    utterance.pitch = 1;
+                    utterance.pitch = 1.0;
                     utterance.volume = 1;
                     utterance.lang = 'en-US';
                     window.speechSynthesis.speak(utterance);
                 } else {
-                    alert('Text-to-speech not supported in your browser.');
+                    alert('Text-to-speech is not supported in your browser.');
                 }
             });
         });
 
-        // Optional: scroll to a specific planet if URL hash exists
+        // Scroll to a specific planet if a hash is present (e.g., #2 for third planet)
         if (window.location.hash) {
             const index = parseInt(window.location.hash.substring(1));
             if (!isNaN(index) && index >= 0 && index < planets.length) {
@@ -381,12 +366,6 @@
                 }, 100);
             }
         }
-
-        // Chatbot icon click (if the original script creates a chatbot, it might be separate)
-        // We'll keep the original script include at the bottom.
     </script>
-
-    <!-- Original chatbot script (it will attach itself, we keep it as is) -->
-    <script src="ai-chatbot.js"></script>
 </body>
 </html>
