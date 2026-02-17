@@ -2,105 +2,391 @@
 <html>
 <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
     <title>Choose a Planet</title>
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
-        body {
+        * {
             margin: 0;
-            padding: 20px;
-            background: radial-gradient(ellipse at bottom, #1B2735 0%, #0a0f1e 100%);
-            color: white;
-            font-family: 'Arial', sans-serif;
-            min-height: 100vh;
+            padding: 0;
+            box-sizing: border-box;
         }
-        .back-btn {
-            display: inline-block;
-            background: rgba(0,0,0,0.6);
+
+        body {
+            background: #0a0f1e;
+            color: white;
+            font-family: 'Segoe UI', 'Rajdhani', sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* Fixed back button (visible on all cards) */
+        .back-btn-fixed {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px);
             color: white;
             padding: 10px 20px;
-            border-radius: 30px;
+            border-radius: 40px;
             text-decoration: none;
-            margin-bottom: 20px;
-            border: 1px solid #3a6ea5;
-            backdrop-filter: blur(5px);
+            font-size: 1.1rem;
+            border: 2px solid #0ff;
+            box-shadow: 0 0 15px #0ff;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: 0.3s;
         }
-        h1 {
-            text-align: center;
-            font-size: 2.5rem;
-            text-shadow: 0 0 20px cyan;
+        .back-btn-fixed:hover {
+            background: rgba(0, 255, 255, 0.2);
+            box-shadow: 0 0 30px #0ff;
         }
-        .planet-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 25px;
-            max-width: 1200px;
-            margin: 40px auto;
-            padding: 0 20px;
+
+        /* Horizontal scroll container */
+        .carousel {
+            display: flex;
+            overflow-x: auto;
+            scroll-snap-type: x mandatory;
+            height: 100vh;
+            width: 100vw;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none; /* Firefox */
         }
-        .card {
-            background: rgba(20, 30, 50, 0.7);
-            backdrop-filter: blur(10px);
-            border: 2px solid #3a6ea5;
-            border-radius: 20px;
+        .carousel::-webkit-scrollbar {
+            display: none; /* Chrome/Safari */
+        }
+
+        /* Each planet card takes full viewport */
+        .planet-card {
+            flex: 0 0 100vw;
+            scroll-snap-align: start;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
             padding: 20px;
+            background: radial-gradient(circle at 20% 30%, rgba(0, 40, 80, 0.8), #0a0f1e);
+            position: relative;
+            overflow-y: auto; /* allow scrolling if content overflows */
+        }
+
+        /* Content container (glass panel) */
+        .card-content {
+            background: rgba(20, 30, 50, 0.5);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border: 2px solid rgba(0, 255, 255, 0.3);
+            border-radius: 40px;
+            padding: 30px 25px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5), inset 0 0 40px rgba(0, 255, 255, 0.2);
             text-align: center;
-            cursor: pointer;
-            transition: transform 0.3s, box-shadow 0.3s;
-            box-shadow: 0 0 15px rgba(0,160,255,0.3);
         }
-        .card:hover {
-            transform: scale(1.05);
-            box-shadow: 0 0 30px cyan;
-        }
-        .card img {
-            width: 120px;
-            height: 120px;
+
+        /* Planet image in a circle */
+        .planet-image {
+            width: 180px;
+            height: 180px;
             border-radius: 50%;
             object-fit: cover;
-            border: 3px solid #8ab3ff;
-            background: black;
+            border: 4px solid #0ff;
+            box-shadow: 0 0 40px #0ff;
+            margin: 0 auto 20px;
+            background: #111;
         }
-        .card h2 {
-            margin: 15px 0 5px;
-            font-size: 1.8rem;
+
+        .planet-name {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            background: linear-gradient(45deg, #fff, #aaddff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 20px cyan;
         }
-        .card p {
-            margin: 5px 0;
-            font-size: 0.9rem;
-            opacity: 0.8;
+
+        .planet-details {
+            font-size: 1.2rem;
+            margin: 15px 0;
+            line-height: 1.6;
+            color: rgba(255,255,255,0.9);
+        }
+
+        .planet-details p {
+            margin: 8px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .planet-details i {
+            color: #0ff;
+            width: 25px;
+            font-size: 1.3rem;
+        }
+
+        /* Button group */
+        .button-group {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 25px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+            border: 2px solid #0ff;
+            border-radius: 50px;
+            padding: 12px 30px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: white;
+            cursor: pointer;
+            transition: 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            box-shadow: 0 0 20px #0ff;
+        }
+        .btn:hover {
+            background: rgba(0, 255, 255, 0.2);
+            transform: scale(1.05);
+            box-shadow: 0 0 40px #0ff;
+        }
+        .btn.speaker {
+            background: rgba(255, 0, 255, 0.2);
+            border-color: #f0f;
+            box-shadow: 0 0 20px #f0f;
+        }
+        .btn.speaker:hover {
+            background: rgba(255, 0, 255, 0.4);
+            box-shadow: 0 0 40px #f0f;
+        }
+
+        /* AI Chatbot container (repositioned) */
+        .chatbot-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 2000;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: rgba(0, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            border: 2px solid #0ff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: 0.3s;
+            box-shadow: 0 0 20px #0ff;
+        }
+        .chatbot-container:hover {
+            transform: scale(1.1);
+            background: rgba(0, 255, 255, 0.4);
+        }
+        .chatbot-container i {
+            font-size: 2rem;
+            color: white;
+        }
+        /* The actual chatbot script will attach to this element? We'll just keep the script include, it probably creates its own. But to be safe, we'll keep the original script tag. */
+
+        /* Responsive adjustments */
+        @media (max-width: 600px) {
+            .planet-name { font-size: 2.2rem; }
+            .planet-image { width: 130px; height: 130px; }
+            .btn { font-size: 1rem; padding: 8px 20px; }
+            .card-content { padding: 20px; }
         }
     </style>
 </head>
 <body>
-    <a href="index.html" class="back-btn">← Home</a>
-    <h1>🪐 Select a Planet to Explore</h1>
-    <div class="planet-grid" id="planet-grid"></div>
+    <!-- Fixed back button -->
+    <a href="index.html" class="back-btn-fixed"><i class="fas fa-arrow-left"></i> Home</a>
+
+    <!-- Horizontal carousel -->
+    <div class="carousel" id="carousel"></div>
+
+    <!-- Chatbot floating icon (the script will likely inject its own, but we provide a container) -->
+    <div class="chatbot-container" id="chatbot-icon">
+        <i class="fas fa-robot"></i>
+    </div>
 
     <script>
+        // Enhanced planet data with more info and descriptions
         const planets = [
-            { name: 'Mercury', diameter: '4,879 km', distance: '57.9 million km', texture: 'mercury.jpg' },
-            { name: 'Venus', diameter: '12,104 km', distance: '108.2 million km', texture: 'venus.jpg' },
-            { name: 'Earth', diameter: '12,742 km', distance: '149.6 million km', texture: 'earth.jpg' },
-            { name: 'Mars', diameter: '6,779 km', distance: '227.9 million km', texture: 'mars.jpg' },
-            { name: 'Jupiter', diameter: '139,820 km', distance: '778.5 million km', texture: 'jupiter.jpg' },
-            { name: 'Saturn', diameter: '116,460 km', distance: '1.43 billion km', texture: 'saturn.jpg', hasRing: true },
-            { name: 'Uranus', diameter: '50,724 km', distance: '2.87 billion km', texture: 'uranus.jpg', hasRing: true },
-            { name: 'Neptune', diameter: '49,244 km', distance: '4.5 billion km', texture: 'neptune.jpg' }
+            { 
+                name: 'Mercury', 
+                diameter: '4,879 km', 
+                distance: '57.9 million km', 
+                texture: 'mercury.jpg',
+                description: 'The smallest planet, scorching hot during the day and freezing at night.',
+                temperature: '-173°C to 427°C',
+                moons: '0',
+                orbitPeriod: '88 days'
+            },
+            { 
+                name: 'Venus', 
+                diameter: '12,104 km', 
+                distance: '108.2 million km', 
+                texture: 'venus.jpg',
+                description: 'Similar in size to Earth, but with a thick toxic atmosphere and surface hot enough to melt lead.',
+                temperature: '462°C',
+                moons: '0',
+                orbitPeriod: '225 days'
+            },
+            { 
+                name: 'Earth', 
+                diameter: '12,742 km', 
+                distance: '149.6 million km', 
+                texture: 'earth.jpg',
+                description: 'Our home planet, the only known place with life.',
+                temperature: '-88°C to 58°C',
+                moons: '1',
+                orbitPeriod: '365 days'
+            },
+            { 
+                name: 'Mars', 
+                diameter: '6,779 km', 
+                distance: '227.9 million km', 
+                texture: 'mars.jpg',
+                description: 'The red planet, with the largest volcano in the solar system.',
+                temperature: '-87°C to -5°C',
+                moons: '2',
+                orbitPeriod: '687 days'
+            },
+            { 
+                name: 'Jupiter', 
+                diameter: '139,820 km', 
+                distance: '778.5 million km', 
+                texture: 'jupiter.jpg',
+                description: 'The largest planet, a gas giant with a Great Red Spot.',
+                temperature: '-108°C',
+                moons: '79',
+                orbitPeriod: '12 years'
+            },
+            { 
+                name: 'Saturn', 
+                diameter: '116,460 km', 
+                distance: '1.43 billion km', 
+                texture: 'saturn.jpg',
+                hasRing: true,
+                description: 'Famous for its beautiful rings made of ice and rock.',
+                temperature: '-139°C',
+                moons: '82',
+                orbitPeriod: '29 years'
+            },
+            { 
+                name: 'Uranus', 
+                diameter: '50,724 km', 
+                distance: '2.87 billion km', 
+                texture: 'uranus.jpg',
+                hasRing: true,
+                description: 'An ice giant that rotates on its side.',
+                temperature: '-197°C',
+                moons: '27',
+                orbitPeriod: '84 years'
+            },
+            { 
+                name: 'Neptune', 
+                diameter: '49,244 km', 
+                distance: '4.5 billion km', 
+                texture: 'neptune.jpg',
+                description: 'The windiest planet, with supersonic storms.',
+                temperature: '-201°C',
+                moons: '14',
+                orbitPeriod: '165 years'
+            }
         ];
 
-        const grid = document.getElementById('planet-grid');
-        planets.forEach(p => {
+        const carousel = document.getElementById('carousel');
+
+        // Build cards
+        planets.forEach((p, index) => {
             const card = document.createElement('div');
-            card.className = 'card';
-            card.onclick = () => location.href = `planet.html?name=${p.name.toLowerCase()}`;
+            card.className = 'planet-card';
+
+            // Fallback image if texture missing
+            const imgSrc = `images/${p.texture}`;
+            const fallbackSrc = `https://via.placeholder.com/180?text=${p.name}`;
+
             card.innerHTML = `
-                <img src="images/${p.texture}" alt="${p.name}" onerror="this.src='https://via.placeholder.com/120?text=${p.name}'">
-                <h2>${p.name}</h2>
-                <p>Diameter: ${p.diameter}</p>
-                <p>Distance: ${p.distance}</p>
+                <div class="card-content">
+                    <img class="planet-image" src="${imgSrc}" alt="${p.name}" onerror="this.src='${fallbackSrc}'">
+                    <div class="planet-name">${p.name}</div>
+                    <div class="planet-details">
+                        <p><i class="fas fa-ruler"></i> Diameter: ${p.diameter}</p>
+                        <p><i class="fas fa-sun"></i> Distance from Sun: ${p.distance}</p>
+                        <p><i class="fas fa-thermometer-half"></i> Temperature: ${p.temperature}</p>
+                        <p><i class="fas fa-moon"></i> Moons: ${p.moons}</p>
+                        <p><i class="fas fa-clock"></i> Orbit period: ${p.orbitPeriod}</p>
+                        <p style="font-style: italic; margin-top: 15px;">"${p.description}"</p>
+                    </div>
+                    <div class="button-group">
+                        <a class="btn" href="planet.html?name=${p.name.toLowerCase()}"><i class="fas fa-vr-cardboard"></i> Show in AR</a>
+                        <button class="btn speaker" data-index="${index}"><i class="fas fa-volume-up"></i> Listen</button>
+                    </div>
+                </div>
             `;
-            grid.appendChild(card);
+            carousel.appendChild(card);
         });
+
+        // Add event listeners for speaker buttons
+        document.querySelectorAll('.speaker').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const index = e.currentTarget.dataset.index;
+                const planet = planets[index];
+                // Construct a friendly description
+                const text = `${planet.name}. Diameter ${planet.diameter}. Distance from Sun ${planet.distance}. Temperature ${planet.temperature}. Moons: ${planet.moons}. Orbit period: ${planet.orbitPeriod}. ${planet.description}`;
+                
+                // Use Web Speech API
+                if ('speechSynthesis' in window) {
+                    window.speechSynthesis.cancel(); // stop any ongoing
+                    const utterance = new SpeechSynthesisUtterance(text);
+                    utterance.rate = 0.9;
+                    utterance.pitch = 1;
+                    utterance.volume = 1;
+                    utterance.lang = 'en-US';
+                    window.speechSynthesis.speak(utterance);
+                } else {
+                    alert('Text-to-speech not supported in your browser.');
+                }
+            });
+        });
+
+        // Optional: scroll to a specific planet if URL hash exists
+        if (window.location.hash) {
+            const index = parseInt(window.location.hash.substring(1));
+            if (!isNaN(index) && index >= 0 && index < planets.length) {
+                setTimeout(() => {
+                    carousel.scrollTo({
+                        left: index * window.innerWidth,
+                        behavior: 'smooth'
+                    });
+                }, 100);
+            }
+        }
+
+        // Chatbot icon click (if the original script creates a chatbot, it might be separate)
+        // We'll keep the original script include at the bottom.
     </script>
+
+    <!-- Original chatbot script (it will attach itself, we keep it as is) -->
     <script src="ai-chatbot.js"></script>
 </body>
 </html>
