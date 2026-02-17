@@ -277,83 +277,49 @@
             text-align: center;
             background: rgba(20, 30, 50, 0.3);
             backdrop-filter: blur(12px);
-            border-radius: 50px;
-            padding: 2rem;
+            border-radius: 40px;
+            padding: 1.5rem 2rem;
             border: 1px solid rgba(0,255,255,0.3);
             width: fit-content;
-            max-width: 500px;
+            max-width: 400px;
         }
         .download-btn {
             background: linear-gradient(45deg, #0066aa, #440088);
             border: 2px solid #0ff;
-            border-radius: 40px;
-            padding: 0.8rem 2rem;
+            border-radius: 30px;
+            padding: 0.5rem 1.5rem;
             font-family: 'Orbitron', sans-serif;
-            font-size: 1.4rem;
+            font-size: 1.2rem;
             font-weight: 600;
             color: white;
             text-decoration: none;
             text-transform: uppercase;
-            letter-spacing: 2px;
-            box-shadow: 0 0 30px #0ff;
+            letter-spacing: 1px;
+            box-shadow: 0 0 20px #0ff;
             transition: 0.4s;
             display: inline-flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
             cursor: pointer;
             border: none;
         }
-        .download-btn i { font-size: 1.8rem; }
+        .download-btn i { font-size: 1.4rem; }
         .download-btn:hover {
             transform: scale(1.05);
             background: linear-gradient(45deg, #0088ff, #6600cc);
-            box-shadow: 0 0 50px #0ff;
+            box-shadow: 0 0 40px #0ff;
         }
 
         .marker-preview {
-            max-width: 200px;
-            margin: 1.5rem auto 0;
-            border-radius: 20px;
-            border: 3px solid #0ff;
-            box-shadow: 0 0 30px #0ff;
+            max-width: 150px;
+            margin: 1rem auto 0;
+            border-radius: 15px;
+            border: 2px solid #0ff;
+            box-shadow: 0 0 20px #0ff;
             transition: 0.4s;
             cursor: pointer;
         }
         .marker-preview:hover { transform: scale(1.05); }
-
-        /* ===== TESTIMONIALS ===== */
-        .testimonials {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 2rem;
-            margin: 3rem 0;
-        }
-        .testimonial-card {
-            background: rgba(30, 40, 60, 0.4);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(0,255,255,0.2);
-            border-radius: 30px;
-            padding: 2rem;
-            max-width: 300px;
-            text-align: center;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        }
-        .testimonial-card i {
-            font-size: 3rem;
-            color: #0ff;
-            margin-bottom: 1rem;
-        }
-        .testimonial-text {
-            font-style: italic;
-            font-size: 1.2rem;
-            margin-bottom: 1rem;
-            color: #fff;
-        }
-        .testimonial-author {
-            font-weight: 600;
-            color: #aaddff;
-        }
 
         /* ===== FOOTER ===== */
         .footer {
@@ -440,36 +406,14 @@
         <!-- Download Marker with embedded image -->
         <div class="download-area">
             <button class="download-btn" id="downloadMarkerBtn">
-                <i class="fas fa-download"></i> DOWNLOAD HIRO MARKER
+                <i class="fas fa-download"></i> DOWNLOAD MARKER
             </button>
             <div>
                 <img id="markerPreview" class="marker-preview" src="#" alt="HIRO Marker">
             </div>
-            <p style="color: rgba(255,255,255,0.7); margin-top: 1rem;">
-                Click image to download, or use the button.
+            <p style="color: rgba(255,255,255,0.7); margin-top: 0.5rem; font-size: 0.9rem;">
+                Click image or button to download.
             </p>
-        </div>
-
-        <!-- Testimonials / Quotes -->
-        <div class="section-title">
-            <i class="fas fa-quote-right"></i> EXPLORER'S VOICE <i class="fas fa-quote-left"></i>
-        </div>
-        <div class="testimonials">
-            <div class="testimonial-card">
-                <i class="fas fa-user-astronaut"></i>
-                <div class="testimonial-text">"It felt like I was actually floating in space! The planets are so detailed."</div>
-                <div class="testimonial-author">— Alex, aspiring astronaut</div>
-            </div>
-            <div class="testimonial-card">
-                <i class="fas fa-user-graduate"></i>
-                <div class="testimonial-text">"My students were mesmerized. Finally a fun way to teach the solar system!"</div>
-                <div class="testimonial-author">— Ms. Rivera, science teacher</div>
-            </div>
-            <div class="testimonial-card">
-                <i class="fas fa-user-astronaut"></i>
-                <div class="testimonial-text">"The AR tracking is rock solid. I walked all around the model."</div>
-                <div class="testimonial-author">— Marcus, VR enthusiast</div>
-            </div>
         </div>
 
         <!-- Footer -->
@@ -480,23 +424,12 @@
     </div>
 
     <!-- Embedded Hiro marker image (base64) -->
-    <!-- The actual Hiro PNG from AR.js converted to base64 (shortened for brevity, but a real base64 string would be here) -->
     <script>
-        // For demo purposes, we use a placeholder. In a real project, replace with actual base64 of hiro.png.
-        // I'll create a minimal valid PNG base64 (1x1 transparent) but the user should replace with real.
-        // To keep the answer functional, I'll use a data URL that points to the official image.
-        // But the user wants it embedded, so I'll generate a base64 string of a small valid PNG.
-        // For simplicity, I'll use the official URL and mention that embedding requires conversion.
-        // However, to meet the requirement "make it download from my code", we'll embed a base64 string.
-        // I'll include a placeholder note.
-        const markerBase64 = "iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAAAoElEQVR4nO3aMQ6AIAwF0E7j4TyczcHNJZggURs1pYVif0vyFgIDLc+vgKjMzMwMAICRc0ZrTTHGk5zzOefzfd8p5z2ltJRSlFJKKZVzzjnnlFJKKaWUcs4ppZRSSinlnHPOOaeUUkoppZRzzjnnnFJKKaWUcs4555xzzimllFJKKeecU0oppZRyzjnnnFN+dzjn/H+fGQD8iJmZmZl9xQZNIiNsf0QT7QAAAABJRU5ErkJggg=="; // a tiny dummy PNG
-        // Real marker: use the actual base64 from https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/data/hiro.png
-        // For production, replace markerBase64 with the full base64 of that image.
+        // Dummy base64 (tiny transparent PNG). Replace with actual base64 of hiro.png for production.
+        const markerBase64 = "iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAAAoElEQVR4nO3aMQ6AIAwF0E7j4TyczcHNJZggURs1pYVif0vyFgIDLc+vgKjMzMwMAICRc0ZrTTHGk5zzOefzfd8p5z2ltJRSlFJKKZVzzjnnlFJKKaWUcs45pZRSSinlnHPOOaeUUkoppZRzzjnnnFJKKaWUcs4555xzzimllFJKKeecU0oppZRyzjnnnFN+dzjn/H+fGQD8iJmZmZl9xQZNIiNsf0QT7QAAAABJRU5ErkJggg==";
         
-        // Set preview image source
         document.getElementById('markerPreview').src = 'data:image/png;base64,' + markerBase64;
 
-        // Download function
         function downloadMarker() {
             const link = document.createElement('a');
             link.download = 'hiro_marker.png';
@@ -508,7 +441,7 @@
         document.getElementById('markerPreview').addEventListener('click', downloadMarker);
     </script>
 
-    <!-- 3D Solar System Preview Script -->
+    <!-- 3D Solar System Preview Script with Orbits -->
     <script type="module">
         import * as THREE from 'three';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -555,6 +488,20 @@
         const sun = new THREE.Mesh(sunGeo, sunMat);
         scene.add(sun);
 
+        // Helper function to create orbit rings
+        function createOrbitRing(radius, color = 0x3366ff) {
+            const points = [];
+            const segments = 128;
+            for (let i = 0; i <= segments; i++) {
+                const angle = (i / segments) * Math.PI * 2;
+                points.push(new THREE.Vector3(radius * Math.cos(angle), 0, radius * Math.sin(angle)));
+            }
+            const geometry = new THREE.BufferGeometry().setFromPoints(points);
+            const material = new THREE.LineBasicMaterial({ color, opacity: 0.3, transparent: true });
+            const ring = new THREE.LineLoop(geometry, material);
+            scene.add(ring);
+        }
+
         // Texture loader (fallback colors if images missing)
         const loader = new THREE.TextureLoader();
         function createPlanet(size, color, distance, speed, textureUrl) {
@@ -586,6 +533,9 @@
             { size: 1.6, color: 0x3366ff, distance: 52, speed: 0.0008, tex: 'images/neptune.jpg' }
         ];
 
+        // Create orbit rings for each planet distance
+        planets.forEach(p => createOrbitRing(p.distance, 0x44aaff));
+
         const planetMeshes = [];
         planets.forEach(p => {
             const planet = createPlanet(p.size, p.color, p.distance, p.speed, p.tex);
@@ -594,8 +544,7 @@
         });
 
         // Saturn's ring (if texture available)
-        // For simplicity, we add a ring only if texture exists
-        // We'll just add a simple ring using a torus
+        // For simplicity, we add a simple ring using a torus
         const ringGeo = new THREE.TorusGeometry(2.5, 0.4, 16, 100);
         const ringMat = new THREE.MeshStandardMaterial({ color: 0xccaa88, side: THREE.DoubleSide, transparent: true, opacity: 0.6 });
         const ring = new THREE.Mesh(ringGeo, ringMat);
