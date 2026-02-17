@@ -1,58 +1,417 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <meta charset="utf-8">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
     <title>AR Space Explorer – Home</title>
+    <!-- Google Fonts for futuristic typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body {
+        * {
             margin: 0;
             padding: 0;
-            background: #0a0f1e;
-            color: white;
-            font-family: 'Arial', sans-serif;
-            overflow: hidden;
+            box-sizing: border-box;
         }
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background: #0a0f1e;
+            color: #fff;
+            overflow-x: hidden;
+            scroll-behavior: smooth;
+        }
+
+        /* ===== CUSTOM SCROLLBAR ===== */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0a0f1e;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(45deg, #00aaff, #aa00ff);
+            border-radius: 10px;
+        }
+
+        /* ===== PROGRESS BAR ===== */
+        #progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 0%;
+            height: 4px;
+            background: linear-gradient(90deg, #00ffff, #ff00ff, #ffff00);
+            box-shadow: 0 0 20px #00ffff, 0 0 40px #ff00ff;
+            z-index: 9999;
+            transition: width 0.1s ease;
+            border-radius: 0 2px 2px 0;
+        }
+
+        /* ===== STARFIELD ANIMATION ===== */
+        #stars, #stars2, #stars3 {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            pointer-events: none;
+        }
+        @keyframes starPulse {
+            0% { opacity: 0.2; }
+            50% { opacity: 1; }
+            100% { opacity: 0.2; }
+        }
+        .star {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            animation: starPulse 3s infinite ease-in-out;
+        }
+
+        /* ===== MAIN CONTAINER ===== */
         .container {
+            position: relative;
+            z-index: 2;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem 4rem;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
-            height: 100vh;
-            background: radial-gradient(ellipse at bottom, #1B2735 0%, #0a0f1e 100%);
+            min-height: 100vh;
+        }
+
+        /* ===== HERO SECTION ===== */
+        .hero {
+            text-align: center;
+            margin: 4rem 0 3rem;
         }
         h1 {
-            font-size: 3rem;
-            margin-bottom: 2rem;
-            text-shadow: 0 0 20px rgba(0,160,255,0.7);
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 900;
+            font-size: clamp(2.5rem, 8vw, 5rem);
+            text-transform: uppercase;
+            background: linear-gradient(135deg, #fff 0%, #aaddff 30%, #c0a0ff 70%, #ffa0c0 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            filter: drop-shadow(0 0 30px rgba(0,160,255,0.7));
+            letter-spacing: 4px;
+            line-height: 1.2;
+            margin-bottom: 1rem;
+        }
+        .subhead {
+            font-size: 1.4rem;
+            font-weight: 300;
+            color: rgba(255,255,255,0.8);
+            text-shadow: 0 0 15px rgba(0,255,255,0.5);
+            letter-spacing: 2px;
+        }
+
+        /* ===== NAVIGATION BUTTONS (preserved) ===== */
+        .button-panel {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 2rem;
+            margin: 3rem 0 4rem;
         }
         .button {
-            background: rgba(20,30,50,0.8);
-            border: 2px solid #3a6ea5;
-            color: white;
-            padding: 1.5rem 3rem;
-            margin: 1rem;
-            font-size: 2rem;
+            background: rgba(10, 20, 40, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 2px solid rgba(0, 200, 255, 0.5);
             border-radius: 60px;
+            padding: 1.2rem 2.8rem;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: white;
+            text-decoration: none;
+            text-transform: uppercase;
+            letter-spacing: 3px;
             cursor: pointer;
-            transition: all 0.3s;
-            width: 300px;
+            transition: all 0.4s ease;
+            box-shadow: 0 0 30px rgba(0, 160, 255, 0.3), inset 0 0 20px rgba(0, 160, 255, 0.3);
+            min-width: 280px;
             text-align: center;
-            box-shadow: 0 0 20px rgba(0,160,255,0.3);
-            backdrop-filter: blur(5px);
         }
         .button:hover {
+            transform: scale(1.07) translateY(-5px);
+            background: rgba(0, 160, 255, 0.2);
+            border-color: #0ff;
+            box-shadow: 0 0 50px #0ff, 0 0 100px #f0f, inset 0 0 30px #0ff;
+            text-shadow: 0 0 15px #fff;
+        }
+        .button:active {
+            transform: scale(0.98);
+        }
+
+        /* ===== INSTRUCTION CARDS ===== */
+        .section-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2.8rem;
+            font-weight: 700;
+            margin: 3rem 0 2rem;
+            text-align: center;
+            background: linear-gradient(45deg, #fff, #aaddff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            filter: drop-shadow(0 0 15px cyan);
+        }
+
+        .steps-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            width: 100%;
+            margin: 2rem 0 3rem;
+        }
+
+        .step-card {
+            background: rgba(20, 30, 50, 0.5);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            border-radius: 30px;
+            padding: 2rem 1.5rem;
+            text-align: center;
+            transition: all 0.4s ease;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5), inset 0 0 30px rgba(0,255,255,0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        .step-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(0,255,255,0.1) 0%, transparent 70%);
+            opacity: 0;
+            transition: opacity 0.6s;
+            pointer-events: none;
+        }
+        .step-card:hover {
+            transform: translateY(-15px);
+            border-color: #0ff;
+            box-shadow: 0 20px 40px rgba(0,255,255,0.3), inset 0 0 50px rgba(0,255,255,0.2);
+        }
+        .step-card:hover::before {
+            opacity: 1;
+        }
+
+        .step-number {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 3.5rem;
+            font-weight: 900;
+            color: transparent;
+            -webkit-text-stroke: 2px #0ff;
+            text-shadow: 0 0 20px #0ff;
+            line-height: 1;
+            margin-bottom: 1rem;
+        }
+
+        .step-title {
+            font-size: 2rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: #fff;
+            text-shadow: 0 0 10px #0ff;
+        }
+
+        .step-desc {
+            font-size: 1.2rem;
+            color: rgba(255,255,255,0.8);
+            line-height: 1.5;
+        }
+
+        /* ===== DOWNLOAD MARKER BUTTON ===== */
+        .download-area {
+            margin: 3rem 0;
+            text-align: center;
+        }
+        .download-btn {
+            display: inline-block;
+            background: linear-gradient(45deg, #0066aa, #440088);
+            border: 2px solid #0ff;
+            border-radius: 50px;
+            padding: 1.2rem 3rem;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2rem;
+            font-weight: 600;
+            color: white;
+            text-decoration: none;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            box-shadow: 0 0 40px #0ff, 0 0 80px #f0f;
+            transition: all 0.4s;
+            cursor: pointer;
+            backdrop-filter: blur(5px);
+            margin-bottom: 2rem;
+        }
+        .download-btn:hover {
+            transform: scale(1.1);
+            background: linear-gradient(45deg, #0088ff, #6600cc);
+            box-shadow: 0 0 60px #0ff, 0 0 120px #f0f;
+            border-color: white;
+        }
+
+        .marker-preview {
+            max-width: 300px;
+            margin: 2rem auto;
+            border-radius: 20px;
+            border: 3px solid #0ff;
+            box-shadow: 0 0 40px #0ff;
+            transition: transform 0.4s;
+        }
+        .marker-preview:hover {
             transform: scale(1.05);
-            background: #2a4a7a;
-            border-color: #8ab3ff;
+        }
+
+        /* ===== FOOTER ===== */
+        .footer {
+            margin-top: 5rem;
+            padding: 2rem 0;
+            width: 100%;
+            text-align: center;
+            border-top: 1px solid rgba(0,255,255,0.3);
+            font-size: 1.2rem;
+            color: rgba(255,255,255,0.6);
+            backdrop-filter: blur(5px);
+        }
+        .footer a {
+            color: #0ff;
+            text-decoration: none;
+            transition: 0.3s;
+        }
+        .footer a:hover {
+            text-shadow: 0 0 15px #0ff;
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 600px) {
+            h1 { font-size: 2.5rem; }
+            .button { font-size: 1.5rem; min-width: 220px; }
+            .step-title { font-size: 1.6rem; }
+            .step-desc { font-size: 1rem; }
         }
     </style>
 </head>
 <body>
+    <!-- Progress bar -->
+    <div id="progress-bar"></div>
+
+    <!-- Starfield background (generated by JS) -->
+    <div id="stars"></div>
+    <div id="stars2"></div>
+    <div id="stars3"></div>
+
     <div class="container">
-        <h1>🚀 AR Space Explorer</h1>
-        <div class="button" onclick="location.href='solar.html'">🌌 Solar System Explore</div>
-        <div class="button" onclick="location.href='planets.html'">🪐 Planet Explore</div>
+        <!-- Hero Section -->
+        <div class="hero">
+            <h1>🚀 AR SPACE EXPLORER</h1>
+            <div class="subhead">Experience the solar system in augmented reality</div>
+        </div>
+
+        <!-- Navigation Buttons (original functionality preserved) -->
+        <div class="button-panel">
+            <div class="button" onclick="location.href='solar.html';">🌌 SOLAR SYSTEM</div>
+            <div class="button" onclick="location.href='planets.html';">🪐 PLANET EXPLORE</div>
+        </div>
+
+        <!-- How It Works Section -->
+        <div class="section-title">★ HOW TO EXPERIENCE ★</div>
+        <div class="steps-grid">
+            <div class="step-card">
+                <div class="step-number">1</div>
+                <div class="step-title">PRINT THE MARKER</div>
+                <div class="step-desc">Download the HIRO marker below and print it on a sheet of paper.</div>
+            </div>
+            <div class="step-card">
+                <div class="step-number">2</div>
+                <div class="step-title">OPEN ON YOUR PHONE</div>
+                <div class="step-desc">Visit this page on your smartphone and grant camera permission.</div>
+            </div>
+            <div class="step-card">
+                <div class="step-number">3</div>
+                <div class="step-title">POINT AT MARKER</div>
+                <div class="step-desc">Aim your camera at the HIRO marker – the solar system will appear!</div>
+            </div>
+            <div class="step-card">
+                <div class="step-number">4</div>
+                <div class="step-title">EXPLORE & INTERACT</div>
+                <div class="step-desc">Use one finger to rotate, two fingers to drag and zoom anywhere.</div>
+            </div>
+        </div>
+
+        <!-- Download Marker Section -->
+        <div class="download-area">
+            <a href="hiro_marker.png" download class="download-btn">⬇️ DOWNLOAD HIRO MARKER</a>
+            <div>
+                <img src="https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/data/hiro.png" alt="HIRO Marker Preview" class="marker-preview">
+            </div>
+            <p style="color: rgba(255,255,255,0.7); max-width: 600px; margin: 1rem auto;">
+                The standard HIRO marker. Print it or display it on another screen.
+            </p>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>✨ AR Space Explorer — Immersive Augmented Reality ✨</p>
+            <p>© 2025 | <a href="#">Privacy</a> | <a href="#">Terms</a></p>
+        </div>
     </div>
+
+    <!-- JavaScript for starfield and progress bar -->
+    <script>
+        // ===== STARFIELD GENERATOR =====
+        function createStars(containerId, count, sizeMin, sizeMax, color1, color2) {
+            const container = document.getElementById(containerId);
+            for (let i = 0; i < count; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                const size = Math.random() * (sizeMax - sizeMin) + sizeMin;
+                star.style.width = size + 'px';
+                star.style.height = size + 'px';
+                star.style.left = Math.random() * 100 + '%';
+                star.style.top = Math.random() * 100 + '%';
+                star.style.background = `radial-gradient(circle, ${color1}, ${color2})`;
+                star.style.boxShadow = `0 0 ${size * 2}px ${color1}`;
+                star.style.animationDelay = Math.random() * 5 + 's';
+                container.appendChild(star);
+            }
+        }
+
+        createStars('stars', 200, 1, 3, '#ffffff', '#aaddff');
+        createStars('stars2', 100, 2, 5, '#ffaaff', '#ff80c0');
+        createStars('stars3', 50, 3, 8, '#aaffff', '#00aaff');
+
+        // ===== SCROLL PROGRESS BAR =====
+        window.addEventListener('scroll', function() {
+            const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            const scrolled = (winScroll / height) * 100;
+            document.getElementById('progress-bar').style.width = scrolled + '%';
+        });
+
+        // ===== SMOOTH SCROLL FOR ANCHOR LINKS (if any) =====
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                e.preventDefault();
+                document.querySelector(this.getAttribute('href')).scrollIntoView({
+                    behavior: 'smooth'
+                });
+            });
+        });
+    </script>
+
+    <!-- Include chatbot (unchanged) -->
     <script src="ai-chatbot.js"></script>
 </body>
 </html>
