@@ -77,11 +77,42 @@
             backdrop-filter: blur(14px) saturate(200%);
             line-height: 1.5;
         }
+
+        /* VR BUTTON (added) */
+        .vr-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px);
+            border: 2px solid #0ff;
+            border-radius: 40px;
+            padding: 10px 22px;
+            color: white;
+            font-size: 1.2rem;
+            cursor: pointer;
+            z-index: 1001;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 0 20px #0ff;
+            transition: 0.3s;
+            border: none;
+            text-decoration: none;
+        }
+        .vr-btn:hover {
+            background: rgba(0, 255, 255, 0.2);
+            box-shadow: 0 0 40px #0ff;
+            transform: scale(1.05);
+        }
     </style>
 </head>
 <body>
     <!-- glass back button -->
     <a href="index.html" class="glass-panel back-btn">← Home</a>
+
+    <!-- VR BUTTON (added) -->
+    <button id="vrToggleBtn" class="vr-btn"><i class="fas fa-vr-cardboard"></i> Enter VR</button>
 
     <!-- main info glass card (no emojis) -->
     <div class="glass-panel info-card" id="infoMessage">Point at HIRO marker – 1 finger rotate · 2 fingers drag & zoom anywhere</div>
@@ -263,9 +294,17 @@
              arjs="sourceType: webcam; detectionMode: mono; matrixCodeType: 3x3; debugUIEnabled: false; trackingMethod: best;"
              renderer="antialias: true; alpha: true;"
              gesture-control
-             vr-mode-ui="enabled: false">
+             vr-mode-ui="enabled: true"   <!-- Enable VR UI -->
+             id="scene">
 
-        <a-entity camera></a-entity>
+        <a-entity camera look-controls wasd-controls position="0 1.6 0"></a-entity>
+
+        <!-- Gaze cursor for VR interaction -->
+        <a-entity cursor="fuse: true; fuseTimeout: 500"
+                  position="0 0 -1"
+                  geometry="primitive: ring; radiusInner: 0.02; radiusOuter: 0.03"
+                  material="color: cyan; shader: flat">
+        </a-entity>
 
         <!-- HIRO marker -->
         <a-marker preset="hiro" id="solar-marker" emitevents="true" registerevents>
@@ -417,6 +456,32 @@
                     infoDiv.innerHTML = 'Marker lost – show HIRO to camera';
                 });
             }
+
+            // VR toggle
+            const scene = document.getElementById('scene');
+            const vrToggle = document.getElementById('vrToggleBtn');
+
+            // Check URL for VR mode
+            const urlParams = new URLSearchParams(window.location.search);
+            const vrMode = urlParams.get('vr') === 'true';
+            if (vrMode) {
+                setTimeout(() => {
+                    if (scene && scene.components['vr-mode-ui']) {
+                        scene.enterVR();
+                    }
+                }, 1000);
+                vrToggle.innerHTML = '<i class="fas fa-vr-cardboard"></i> Exit VR';
+            }
+
+            vrToggle.addEventListener('click', () => {
+                if (scene.is('vr-mode')) {
+                    scene.exitVR();
+                    vrToggle.innerHTML = '<i class="fas fa-vr-cardboard"></i> Enter VR';
+                } else {
+                    scene.enterVR();
+                    vrToggle.innerHTML = '<i class="fas fa-vr-cardboard"></i> Exit VR';
+                }
+            });
         })();
     </script>
     <!-- chatbot (kept as original) -->
