@@ -2,68 +2,78 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>AR Solar System – Robust Marker & Orbits</title>
+    <title>AR Solar System – Old Phone Compatible</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <!-- A-Frame and AR.js (stable versions) -->
+    <!-- A-Frame and AR.js (stable, lightweight) -->
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/ar.js@3.4.2/aframe/build/aframe-ar.js"></script>
     <style>
-        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
+        body { margin: 0; overflow: hidden; font-family: 'Arial', sans-serif; background: black; }
+        /* Ensure canvas covers full screen */
+        a-scene { display: block; width: 100%; height: 100%; }
         .back-btn {
             position: absolute;
-            top: 20px;
-            left: 20px;
+            top: 15px;
+            left: 15px;
             background: rgba(0,0,0,0.7);
             color: white;
-            padding: 10px 20px;
+            padding: 8px 16px;
             border-radius: 40px;
             text-decoration: none;
             z-index: 1000;
-            backdrop-filter: blur(5px);
+            backdrop-filter: blur(4px);
             border: 1px solid #4a9eff;
-            font-weight: 500;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            font-size: 14px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.5);
         }
         .info {
             position: absolute;
-            bottom: 30px;
+            bottom: 20px;
             left: 0;
             right: 0;
             text-align: center;
             color: white;
-            background: rgba(0,0,0,0.8);
-            padding: 12px 24px;
-            border-radius: 50px;
+            background: rgba(20,20,30,0.9);
+            padding: 10px 20px;
+            border-radius: 40px;
             width: fit-content;
             margin: 0 auto;
-            backdrop-filter: blur(5px);
+            backdrop-filter: blur(4px);
             border: 1px solid #3a8eff;
             pointer-events: none;
             z-index: 999;
-            font-size: 16px;
-            transition: 0.2s;
+            font-size: 14px;
+            box-shadow: 0 2px 10px black;
         }
         .instruction {
             position: absolute;
-            top: 20px;
-            right: 20px;
-            background: rgba(30,30,30,0.8);
+            top: 15px;
+            right: 15px;
+            background: rgba(0,0,0,0.6);
             color: #ccc;
-            padding: 8px 16px;
+            padding: 6px 12px;
             border-radius: 40px;
-            font-size: 14px;
-            backdrop-filter: blur(5px);
+            font-size: 12px;
+            backdrop-filter: blur(4px);
             border: 1px solid #666;
             z-index: 1000;
+        }
+        /* Fallback message if camera fails */
+        .camera-fallback {
+            position: absolute;
+            top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: white; background: red; padding: 10px; border-radius: 10px;
+            display: none; z-index: 2000;
         }
     </style>
 </head>
 <body>
     <a href="index.html" class="back-btn">← Home</a>
-    <div class="instruction">🪐 1-finger rotate · 2-finger zoom/drag</div>
+    <div class="instruction">🪐 1-finger rotate · 2-finger zoom</div>
     <div class="info" id="status">🔍 Point camera at HIRO marker</div>
+    <div class="camera-fallback" id="camera-error">❌ Camera not accessible. Please check permissions.</div>
 
-    <!-- Advanced gesture control (fixed-point zoom & rotate) -->
+    <!-- Gesture control component (same as before, but optimized) -->
     <script>
         AFRAME.registerComponent('gesture-control', {
             init: function () {
@@ -170,7 +180,7 @@
                         const distance = Math.sqrt(dx*dx + dy*dy);
                         const scaleFactor = distance / startDistance;
                         let newScale = startScale * scaleFactor;
-                        newScale = Math.max(0.03, Math.min(15, newScale)); // reasonable limits
+                        newScale = Math.max(0.03, Math.min(15, newScale));
 
                         const midX = (t1.clientX + t2.clientX) / 2;
                         const midY = (t1.clientY + t2.clientY) / 2;
@@ -183,7 +193,6 @@
                             targetEl.object3D.position.set(newPosX, newPosY, newPosZ);
                             targetEl.object3D.scale.set(newScale, newScale, newScale);
                         } else {
-                            // fallback pan
                             const midDeltaX = midX - (startTouch1.x + startTouch2.x) / 2;
                             const midDeltaY = midY - (startTouch1.y + startTouch2.y) / 2;
                             const panSpeed = 0.0015;
@@ -197,15 +206,11 @@
                 canvas.addEventListener('touchend', (e) => {
                     const touches = e.touches;
                     if (touches.length === 0) {
-                        isOneFinger = false;
-                        isTwoFinger = false;
-                        initialMidpointMarker = null;
-                        initialLocalPoint = null;
+                        isOneFinger = false; isTwoFinger = false;
+                        initialMidpointMarker = null; initialLocalPoint = null;
                     } else if (touches.length === 1) {
-                        isOneFinger = false;
-                        isTwoFinger = false;
-                        initialMidpointMarker = null;
-                        initialLocalPoint = null;
+                        isOneFinger = false; isTwoFinger = false;
+                        initialMidpointMarker = null; initialLocalPoint = null;
                     }
                 });
                 canvas.addEventListener('touchcancel', (e) => {
@@ -216,20 +221,28 @@
         });
     </script>
 
-    <!-- Marker persistence and planet randomizer -->
+    <!-- Marker persistence and UI updates -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const marker = document.getElementById('solar-marker');
             const solarSystem = document.getElementById('solar-system');
             const statusEl = document.getElementById('status');
+            const cameraError = document.getElementById('camera-error');
             let hideTimeout = null;
             const PERSIST_TIME = 2000; // 2 seconds
 
-            // Initially hide until marker found (but we start visible, then hide after timeout if never found)
-            // Actually we want it hidden until first detection, but we'll let markerFound handle visibility.
-            // However, sometimes markerFound might not fire if already visible? We'll set visible=false initially.
+            // Initially hide until marker found
             solarSystem.setAttribute('visible', 'false');
             statusEl.innerHTML = '🔍 Waiting for HIRO marker...';
+
+            // Check if camera is accessible (simple detection via AR.js error event)
+            const scene = document.querySelector('a-scene');
+            scene.addEventListener('camera-error', () => {
+                cameraError.style.display = 'block';
+            });
+            scene.addEventListener('camera-init', () => {
+                cameraError.style.display = 'none';
+            });
 
             function cancelHideTimer() {
                 if (hideTimeout) {
@@ -241,13 +254,13 @@
             marker.addEventListener('markerFound', () => {
                 cancelHideTimer();
                 solarSystem.setAttribute('visible', 'true');
-                statusEl.innerHTML = '✅ Marker FOUND — solar system stable (2s hold on loss)';
+                statusEl.innerHTML = '✅ Marker FOUND — system stable (2s hold on loss)';
                 statusEl.style.background = 'rgba(20, 80, 40, 0.9)';
                 statusEl.style.borderColor = '#6aff8e';
             });
 
             marker.addEventListener('markerLost', () => {
-                statusEl.innerHTML = '⏳ Marker lost — holding position for 2s (reacquire quickly)';
+                statusEl.innerHTML = '⏳ Marker lost — holding for 2s (reacquire quickly)';
                 statusEl.style.background = 'rgba(80, 50, 20, 0.9)';
                 statusEl.style.borderColor = '#ffaa3a';
                 cancelHideTimer();
@@ -260,7 +273,7 @@
                 }, PERSIST_TIME);
             });
 
-            // Randomize initial orbit rotations so planets are spread out
+            // Randomize initial orbit rotations
             const orbitIds = [
                 'orbit-mercury', 'orbit-venus', 'orbit-earth', 'orbit-mars',
                 'orbit-jupiter', 'orbit-saturn', 'orbit-uranus', 'orbit-neptune'
@@ -275,53 +288,45 @@
         });
     </script>
 
+    <!-- A-Frame scene with AR.js optimized for older devices -->
     <a-scene embedded
-             arjs="sourceType: webcam; detectionMode: mono; matrixCodeType: 3x3; debugUIEnabled: false; trackingMethod: best; patternRatio: 0.9; smooth: true; smoothCount: 5; smoothTolerance: 0.01;"
-             renderer="antialias: true; alpha: true;"
-             gesture-control
-             vr-mode-ui="enabled: false">
+             arjs="sourceType: webcam; detectionMode: mono; matrixCodeType: 3x3; debugUIEnabled: false; trackingMethod: best; patternRatio: 0.9; smooth: true; smoothCount: 3; smoothTolerance: 0.02;"
+             renderer="antialias: false; alpha: true; precision: low;"
+             vr-mode-ui="enabled: false"
+             gesture-control>
         
         <a-entity camera></a-entity>
 
-        <!-- HIRO marker with robust detection -->
+        <!-- HIRO marker with essential lights -->
         <a-marker preset="hiro" id="solar-marker" emitevents="true" registerevents>
-            <a-light type="ambient" color="#ffffff" intensity="0.5"></a-light>
+            <a-light type="ambient" color="#ffffff" intensity="0.6"></a-light>
             <a-light type="point" intensity="3" position="0 0 0" color="#ffaa00" distance="20" decay="1"></a-light>
 
-            <!-- Solar system container (initially invisible, shown by markerFound) -->
+            <!-- Solar system container (initially invisible) -->
             <a-entity id="solar-system" visible="false">
-                <!-- SUN with fallback color if texture missing -->
+                <!-- SUN with fallback color (no external images for reliability) -->
                 <a-sphere radius="0.3" position="0 0 0"
-                          material="color: #ffaa00; emissive: #ff6600; emissiveIntensity: 2.0;"
-                          ></a-sphere>
+                          material="color: #ffaa00; emissive: #ff6600; emissiveIntensity: 2.0;"></a-sphere>
                 
                 <!-- ===== ORBIT PATHS (transparent rings) ===== -->
-                <!-- Mercury orbit -->
                 <a-ring radius-inner="0.48" radius-outer="0.5" position="0 0 0" rotation="90 0 0"
-                        material="color: #ccc; transparent: true; opacity: 0.25; side: double;"></a-ring>
-                <!-- Venus orbit -->
+                        material="color: #ccc; transparent: true; opacity: 0.3; side: double;"></a-ring>
                 <a-ring radius-inner="0.68" radius-outer="0.7" position="0 0 0" rotation="90 0 0"
-                        material="color: #fda; transparent: true; opacity: 0.25; side: double;"></a-ring>
-                <!-- Earth orbit -->
+                        material="color: #fda; transparent: true; opacity: 0.3; side: double;"></a-ring>
                 <a-ring radius-inner="0.88" radius-outer="0.9" position="0 0 0" rotation="90 0 0"
-                        material="color: #adf; transparent: true; opacity: 0.25; side: double;"></a-ring>
-                <!-- Mars orbit -->
+                        material="color: #adf; transparent: true; opacity: 0.3; side: double;"></a-ring>
                 <a-ring radius-inner="1.08" radius-outer="1.1" position="0 0 0" rotation="90 0 0"
-                        material="color: #faa; transparent: true; opacity: 0.25; side: double;"></a-ring>
-                <!-- Jupiter orbit -->
+                        material="color: #faa; transparent: true; opacity: 0.3; side: double;"></a-ring>
                 <a-ring radius-inner="1.48" radius-outer="1.5" position="0 0 0" rotation="90 0 0"
                         material="color: #eda; transparent: true; opacity: 0.2; side: double;"></a-ring>
-                <!-- Saturn orbit -->
                 <a-ring radius-inner="1.88" radius-outer="1.9" position="0 0 0" rotation="90 0 0"
                         material="color: #ed9; transparent: true; opacity: 0.2; side: double;"></a-ring>
-                <!-- Uranus orbit -->
                 <a-ring radius-inner="2.28" radius-outer="2.3" position="0 0 0" rotation="90 0 0"
                         material="color: #cdf; transparent: true; opacity: 0.2; side: double;"></a-ring>
-                <!-- Neptune orbit -->
                 <a-ring radius-inner="2.68" radius-outer="2.7" position="0 0 0" rotation="90 0 0"
                         material="color: #66c; transparent: true; opacity: 0.2; side: double;"></a-ring>
 
-                <!-- MERCURY (using color fallback; replace with images if available) -->
+                <!-- MERCURY (color only, guaranteed visible) -->
                 <a-entity class="orbit" id="orbit-mercury" rotation="0 0 0">
                     <a-entity class="planet" position="0.5 0 0">
                         <a-entity class="planet-spin" rotation="0 0 0">
@@ -369,14 +374,14 @@
                 <a-entity class="orbit" id="orbit-jupiter" rotation="0 0 0">
                     <a-entity class="planet" position="1.5 0 0">
                         <a-entity class="planet-spin" rotation="0 0 0">
-                            <a-sphere radius="0.12" material="color #d2b48c;"></a-sphere>
+                            <a-sphere radius="0.12" material="color: #d2b48c;"></a-sphere>
                             <a-animation attribute="rotation" to="0 360 0" dur="10000" easing="linear" repeat="indefinite"></a-animation>
                         </a-entity>
                     </a-entity>
                     <a-animation attribute="rotation" to="0 360 0" dur="15000" easing="linear" repeat="indefinite"></a-animation>
                 </a-entity>
 
-                <!-- SATURN with ring (color only) -->
+                <!-- SATURN with ring -->
                 <a-entity class="orbit" id="orbit-saturn" rotation="0 0 0">
                     <a-entity class="planet" position="1.9 0 0">
                         <a-entity class="planet-spin" rotation="0 0 0">
@@ -415,7 +420,7 @@
                     <a-animation attribute="rotation" to="0 360 0" dur="21000" easing="linear" repeat="indefinite"></a-animation>
                 </a-entity>
 
-                <!-- Stars (decorative) -->
+                <!-- Stars (simple decorative) -->
                 <a-entity position="0 0 0">
                     <a-sphere radius="0.02" color="#ffffff" position="0.6 0.4 0.7"></a-sphere>
                     <a-sphere radius="0.02" color="#ffeedd" position="-0.5 0.6 0.8"></a-sphere>
@@ -427,11 +432,10 @@
             </a-entity> <!-- solar-system -->
         </a-marker>
 
-        <!-- Ground plane (optional, helps with orientation) -->
-        <a-entity rotation="-90 0 0" scale="10 10 10" visible="false"></a-entity>
+        <!-- No ground plane, but a simple background to ensure camera shows -->
     </a-scene>
 
-    <!-- Optional chat script placeholder -->
+    <!-- Placeholder for optional chatbot -->
     <script src="ai-chatbot.js"></script>
 </body>
 </html>
