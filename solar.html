@@ -7,197 +7,45 @@
     <!-- A-Frame and AR.js -->
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
-    <!-- Font Awesome for icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <!-- Google Fonts for futuristic typography -->
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { 
-            margin: 0; 
-            overflow: hidden; 
-            font-family: 'Rajdhani', sans-serif;
-        }
-        a-scene canvas { 
-            touch-action: none; 
-        }
-
-        /* ===== FUTURISTIC UI OVERLAY ===== */
-        .ui-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none; /* Allow clicks to pass through to AR canvas */
-            z-index: 1000;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            align-items: center;
-            padding: 20px;
-            box-sizing: border-box;
-        }
-
-        /* Top bar: back button + title */
-        .top-bar {
-            width: 100%;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            pointer-events: auto; /* Buttons are clickable */
-        }
-
-        /* Back button – glass morph with neon glow */
+        body { margin: 0; overflow: hidden; }
+        a-scene canvas { touch-action: none; }
         .back-btn {
-            background: rgba(10, 20, 40, 0.6);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 2px solid rgba(0, 255, 255, 0.4);
-            border-radius: 40px;
-            padding: 12px 28px;
-            color: #fff;
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.6);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 30px;
             text-decoration: none;
-            font-family: 'Orbitron', sans-serif;
-            font-weight: 500;
-            letter-spacing: 1.5px;
-            font-size: 16px;
-            text-transform: uppercase;
-            box-shadow: 0 0 20px rgba(0, 255, 255, 0.3), inset 0 0 10px rgba(0, 255, 255, 0.2);
-            transition: all 0.3s ease;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
+            font-family: Arial, sans-serif;
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+            border: 1px solid #3a6ea5;
         }
-        .back-btn:hover {
-            background: rgba(0, 255, 255, 0.2);
-            border-color: #0ff;
-            box-shadow: 0 0 30px #0ff, 0 0 60px #0ff, inset 0 0 15px #0ff;
-            transform: scale(1.05);
-            text-shadow: 0 0 8px #0ff;
-        }
-        .back-btn:active {
-            transform: scale(0.98);
-        }
-
-        /* Project title – sleek neon */
-        .project-title {
-            font-family: 'Orbitron', sans-serif;
-            font-weight: 700;
-            font-size: 24px;
-            color: transparent;
-            background: linear-gradient(45deg, #a0f0ff, #c080ff, #ff80c0);
-            -webkit-background-clip: text;
-            background-clip: text;
-            text-shadow: 0 0 20px rgba(160, 240, 255, 0.7), 0 0 40px rgba(192, 128, 255, 0.5);
-            letter-spacing: 3px;
-            pointer-events: none;
-        }
-
-        /* Info panel – glass morph with status */
-        .info-panel {
-            background: rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(15px);
-            -webkit-backdrop-filter: blur(15px);
-            border: 2px solid rgba(0, 255, 255, 0.3);
-            border-radius: 50px;
-            padding: 15px 30px;
-            color: white;
-            font-family: 'Rajdhani', sans-serif;
-            font-size: 1.2rem;
-            letter-spacing: 1px;
-            box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);
-            pointer-events: auto;
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .info-panel i {
-            color: #0ff;
-            font-size: 1.5rem;
-            filter: drop-shadow(0 0 10px #0ff);
-        }
-
-        /* Gesture hint inside info panel */
-        .gesture-hint {
-            display: flex;
-            gap: 8px;
-            margin-left: 10px;
-            border-left: 1px solid rgba(255,255,255,0.3);
-            padding-left: 10px;
-        }
-        .gesture-hint span {
-            background: rgba(0,255,255,0.2);
-            border-radius: 20px;
-            padding: 5px 12px;
-            font-size: 0.9rem;
-            border: 1px solid #0ff;
-        }
-
-        /* Chatbot container (if ai-chatbot.js creates one) – we style it to match */
-        /* The script will inject its own; we can style its container if it uses a specific class */
-        /* But to be safe, we add a floating icon that the script might replace */
-        .chatbot-placeholder {
-            position: fixed;
+        .info {
+            position: absolute;
             bottom: 20px;
-            right: 20px;
-            z-index: 2000;
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background: rgba(0, 255, 255, 0.2);
-            backdrop-filter: blur(10px);
-            border: 2px solid #0ff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: 0.3s;
-            box-shadow: 0 0 20px #0ff;
-            pointer-events: auto;
-        }
-        .chatbot-placeholder i {
-            font-size: 2rem;
+            left: 0;
+            right: 0;
+            text-align: center;
             color: white;
-        }
-        .chatbot-placeholder:hover {
-            transform: scale(1.1);
-            background: rgba(0, 255, 255, 0.4);
-        }
-
-        /* Responsive adjustments */
-        @media (max-width: 700px) {
-            .back-btn { padding: 8px 20px; font-size: 14px; }
-            .project-title { font-size: 20px; }
-            .info-panel { font-size: 1rem; padding: 10px 20px; }
-            .gesture-hint span { font-size: 0.8rem; padding: 3px 8px; }
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            font-family: Arial, sans-serif;
+            pointer-events: none;
+            z-index: 999;
+            border-radius: 40px;
+            width: fit-content;
+            margin: 0 auto;
+            backdrop-filter: blur(5px);
         }
     </style>
 </head>
 <body>
-    <!-- UI Overlay (clicks pass through except buttons) -->
-    <div class="ui-overlay">
-        <div class="top-bar">
-            <a href="index.html" class="back-btn"><i class="fas fa-arrow-left"></i> Home</a>
-            <div class="project-title"><i class="fas fa-saturn"></i> AR SOLAR SYSTEM</div>
-            <div style="width: 100px;"></div> <!-- spacer for balance -->
-        </div>
-
-        <!-- Info panel with dynamic status -->
-        <div class="info-panel" id="infoPanel">
-            <i class="fas fa-camera"></i>
-            <span id="statusMessage">🔍 Point at HIRO marker</span>
-            <div class="gesture-hint">
-                <span><i class="fas fa-hand-pointer"></i> 1F Rotate</span>
-                <span><i class="fas fa-arrows-alt"></i> 2F Pan/Zoom</span>
-            </div>
-        </div>
-    </div>
-
-    <!-- Chatbot placeholder (the actual script will likely replace or attach to this) -->
-    <div class="chatbot-placeholder" id="chatbotIcon">
-        <i class="fas fa-robot"></i>
-    </div>
+    <a href="index.html" class="back-btn">← Home</a>
+    <div class="info">🔵 Point at HIRO – 1 finger rotate · 2 fingers drag & zoom anywhere</div>
 
     <!-- Gesture handler: 1‑finger rotate, 2‑finger drag+zoom with fixed point under fingers -->
     <script>
@@ -406,7 +254,7 @@
             <a-light type="ambient" color="#ffffff" intensity="0.3"></a-light>
             <a-light type="point" intensity="2" position="0 0 0" color="#ffaa00"></a-light>
 
-            <!-- All planets are wrapped in orbit containers that revolve around the sun -->
+            <!-- All planets are now wrapped in orbit containers that revolve around the sun -->
             <a-entity id="solar-system">
                 <!-- SUN (center) -->
                 <a-sphere radius="0.25" position="0 0 0"
@@ -538,17 +386,14 @@
 
             // Marker event handlers
             const marker = document.getElementById('solar-marker');
-            const statusEl = document.getElementById('statusMessage');
             marker.addEventListener('markerFound', () => {
-                statusEl.innerHTML = '✅ Marker FOUND! Solar system visible.';
+                document.querySelector('.info').innerHTML = '✅ Marker FOUND! Solar system visible.';
             });
             marker.addEventListener('markerLost', () => {
-                statusEl.innerHTML = '❌ Marker lost – show HIRO to camera';
+                document.querySelector('.info').innerHTML = '❌ Marker lost – show HIRO to camera';
             });
         })();
     </script>
-
-    <!-- Original chatbot script (unchanged) – it will likely replace or use the placeholder -->
     <script src="ai-chatbot.js"></script>
 </body>
 </html>
