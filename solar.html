@@ -2,16 +2,27 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>AR Solar System – spin & zoom container</title>
+    <title>AR Solar System – glass explorer</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <!-- A-Frame + AR.js -->
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', 'Arial', sans-serif; }
-        a-scene canvas { touch-action: none; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            font-family: 'Segoe UI', 'Arial', sans-serif;
+        }
+        a-scene canvas { 
+            touch-action: none; 
+        }
 
+        /* glassmorphism UI */
         .glass-panel {
             position: absolute;
             background: rgba(20, 30, 45, 0.35);
@@ -43,7 +54,10 @@
             backdrop-filter: blur(12px) saturate(180%);
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
         }
-        .back-btn:hover { background: rgba(45, 60, 85, 0.6); border-color: rgba(255, 255, 255, 0.5); }
+        .back-btn:hover {
+            background: rgba(45, 60, 85, 0.6);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
 
         .info-card {
             bottom: 25px;
@@ -69,19 +83,15 @@
     <!-- glass back button -->
     <a href="index.html" class="glass-panel back-btn">← Home</a>
 
-    <!-- main info glass card -->
-    <div class="glass-panel info-card" id="infoMessage">Point at HIRO marker – 1 finger spin · 2 fingers drag & zoom anywhere</div>
+    <!-- main info glass card (no emojis) -->
+    <div class="glass-panel info-card" id="infoMessage">Point at HIRO marker – 1 finger rotate · 2 fingers drag & zoom anywhere</div>
 
-    <!-- gesture handler: free rotation (world Y + camera right) + marker-plane pan/zoom -->
+    <!-- gesture handler (refined - supports pivot zoom & smooth pan) -->
     <script>
         AFRAME.registerComponent('gesture-control', {
             init: function () {
                 const targetEl = document.getElementById('solar-system');
                 if (!targetEl) return;
-
-                // camera reference
-                const scene = document.querySelector('a-scene');
-                this.camera = scene.camera;
 
                 let isOneFinger = false;
                 let isTwoFinger = false;
@@ -94,20 +104,18 @@
                 let initialLocalPoint = null;
 
                 const canvas = this.el.canvas;
-                const speedRot = 0.005; // rotation sensitivity
+                const speedRot = 0.005;
 
-                canvas.addEventListener('touchstart', onTouchStart.bind(this), { passive: false });
-                canvas.addEventListener('touchmove', onTouchMove.bind(this), { passive: false });
-                canvas.addEventListener('touchend', onTouchEnd.bind(this));
-                canvas.addEventListener('touchcancel', onTouchEnd.bind(this));
+                canvas.addEventListener('touchstart', onTouchStart, { passive: false });
+                canvas.addEventListener('touchmove', onTouchMove, { passive: false });
+                canvas.addEventListener('touchend', onTouchEnd);
+                canvas.addEventListener('touchcancel', onTouchEnd);
 
-                // Helper to get marker transform
                 function getMarkerTransform() {
                     const marker = document.getElementById('solar-marker');
                     return marker ? marker.object3D : null;
                 }
 
-                // Project screen point to marker plane (returns {x, y} in marker local space)
                 function screenToMarkerPlane(clientX, clientY) {
                     const scene = document.querySelector('a-scene');
                     if (!scene || !scene.camera) return null;
@@ -138,7 +146,6 @@
                     return { x: localPoint.x, y: localPoint.y };
                 }
 
-                // --- touch handlers ---
                 function onTouchStart(e) {
                     e.preventDefault();
                     const touches = e.touches;
@@ -173,10 +180,10 @@
                             initialMidpointMarker = markerPoint;
                             const Lx = (markerPoint.x - startPosition.x) / startScale;
                             const Ly = (markerPoint.y - startPosition.y) / startScale;
-                            const Lz = (0 - startPosition.z) / startScale; // z always 0 initially
+                            const Lz = (0 - startPosition.z) / startScale;
                             initialLocalPoint = { x: Lx, y: Ly, z: Lz };
                         } else {
-                            // fallback: screen-based pan
+                            // fallback: use screen-based pan
                             initialMidpointMarker = { x: startPosition.x, y: startPosition.y };
                             initialLocalPoint = { x: 0, y: 0, z: 0 };
                         }
@@ -192,20 +199,8 @@
                         const dx = touch.clientX - startTouch1.x;
                         const dy = touch.clientY - startTouch1.y;
 
-                        // --- Free rotation: combine world Y and camera right ---
-                        const cameraObj = this.camera;
-                        if (cameraObj) {
-                            // Rotate around world Y (horizontal)
-                            targetEl.object3D.rotateOnWorldY(-dx * speedRot);
-                            // Rotate around camera's right vector (vertical tilt)
-                            const cameraRight = new THREE.Vector3();
-                            cameraObj.matrixWorld.extractBasis(cameraRight, new THREE.Vector3(), new THREE.Vector3());
-                            targetEl.object3D.rotateOnWorldAxis(cameraRight, dy * speedRot);
-                        } else {
-                            // fallback
-                            targetEl.object3D.rotateOnWorldY(-dx * speedRot);
-                            targetEl.object3D.rotateOnWorldX(dy * speedRot);
-                        }
+                        targetEl.object3D.rotateOnWorldY(-dx * speedRot);
+                        targetEl.object3D.rotateOnWorldX(dy * speedRot);
 
                         startTouch1.x = touch.clientX;
                         startTouch1.y = touch.clientY;
@@ -219,7 +214,7 @@
                         const distance = Math.sqrt(dx * dx + dy * dy);
                         const scaleFactor = distance / startDistance;
                         let newScale = startScale * scaleFactor;
-                        newScale = Math.max(0.02, Math.min(5.0, newScale)); // reasonable limits
+                        newScale = Math.max(0.01, Math.min(1e9, newScale));
 
                         const midX = (t1.clientX + t2.clientX) / 2;
                         const midY = (t1.clientY + t2.clientY) / 2;
@@ -234,10 +229,10 @@
                             targetEl.object3D.position.set(newPosX, newPosY, newPosZ);
                             targetEl.object3D.scale.set(newScale, newScale, newScale);
                         } else {
-                            // fallback screen-based pan (if marker plane lost)
+                            // Fallback screen-based pan (if marker plane lost)
                             const midDeltaX = midX - (startTouch1.x + startTouch2.x) / 2;
                             const midDeltaY = midY - (startTouch1.y + startTouch2.y) / 2;
-                            const panSpeed = 0.0015;
+                            const panSpeed = 0.0015; // adjusted for smoother feel
                             targetEl.object3D.position.x = startPosition.x - midDeltaX * panSpeed * newScale;
                             targetEl.object3D.position.y = startPosition.y + midDeltaY * panSpeed * newScale;
                             targetEl.object3D.scale.set(newScale, newScale, newScale);
@@ -253,9 +248,7 @@
                         initialMidpointMarker = null;
                         initialLocalPoint = null;
                     } else if (touches.length === 1) {
-                        // if one finger remains after two-finger lift, we may want to start new one-finger gesture
-                        // but reset states to avoid conflicts
-                        isOneFinger = false; // will be set on next touchstart
+                        isOneFinger = false;
                         isTwoFinger = false;
                         initialMidpointMarker = null;
                         initialLocalPoint = null;
@@ -279,19 +272,18 @@
             <a-light type="ambient" color="#ffffff" intensity="0.4"></a-light>
             <a-light type="point" intensity="2.5" position="0 0 0" color="#ffaa00"></a-light>
 
-            <!-- ========== SOLAR SYSTEM CONTAINER ========== -->
-            <!-- All planets + sun as a single group that can be rotated/moved/scaled -->
+            <!-- All planets with increased size & proper distance, no orbit rings -->
             <a-entity id="solar-system">
-                <!-- SUN (big) -->
-                <a-sphere radius="0.65" position="0 0 0"
+                <!-- SUN (bigger) -->
+                <a-sphere radius="0.45" position="0 0 0"
                           material="src: url(images/sun.jpg); emissive: #ff6600; emissiveIntensity: 1.5;"></a-sphere>
 
-                <!-- ===== BIG PLANETS with increased size & spacing ===== -->
+                <!-- ===== PLANETS (each inside revolving container) ===== -->
                 <!-- MERCURY -->
                 <a-entity class="orbit" rotation="0 0 0" id="orbit-mercury">
-                    <a-entity class="planet" position="1.6 0 0" rotation="0 0 0" id="planet-mercury">
+                    <a-entity class="planet" position="1.2 0 0" rotation="0 0 0" id="planet-mercury">
                         <a-entity class="planet-spin" rotation="0 0 0">
-                            <a-sphere radius="0.16" material="src: url(images/mercury.jpg);"></a-sphere>
+                            <a-sphere radius="0.1" material="src: url(images/mercury.jpg);"></a-sphere>
                             <a-animation attribute="rotation" to="0 360 0" dur="4000" easing="linear" repeat="indefinite"></a-animation>
                         </a-entity>
                     </a-entity>
@@ -300,9 +292,9 @@
 
                 <!-- VENUS -->
                 <a-entity class="orbit" rotation="0 0 0" id="orbit-venus">
-                    <a-entity class="planet" position="2.2 0 0" rotation="0 0 0" id="planet-venus">
+                    <a-entity class="planet" position="1.7 0 0" rotation="0 0 0" id="planet-venus">
                         <a-entity class="planet-spin" rotation="0 0 0">
-                            <a-sphere radius="0.19" material="src: url(images/venus.jpg);"></a-sphere>
+                            <a-sphere radius="0.12" material="src: url(images/venus.jpg);"></a-sphere>
                             <a-animation attribute="rotation" to="0 360 0" dur="6000" easing="linear" repeat="indefinite"></a-animation>
                         </a-entity>
                     </a-entity>
@@ -311,9 +303,9 @@
 
                 <!-- EARTH -->
                 <a-entity class="orbit" rotation="0 0 0" id="orbit-earth">
-                    <a-entity class="planet" position="2.8 0 0" rotation="0 0 0" id="planet-earth">
+                    <a-entity class="planet" position="2.2 0 0" rotation="0 0 0" id="planet-earth">
                         <a-entity class="planet-spin" rotation="0 0 0">
-                            <a-sphere radius="0.21" material="src: url(images/earth.jpg);"></a-sphere>
+                            <a-sphere radius="0.13" material="src: url(images/earth.jpg);"></a-sphere>
                             <a-animation attribute="rotation" to="0 360 0" dur="8000" easing="linear" repeat="indefinite"></a-animation>
                         </a-entity>
                     </a-entity>
@@ -322,9 +314,9 @@
 
                 <!-- MARS -->
                 <a-entity class="orbit" rotation="0 0 0" id="orbit-mars">
-                    <a-entity class="planet" position="3.4 0 0" rotation="0 0 0" id="planet-mars">
+                    <a-entity class="planet" position="2.7 0 0" rotation="0 0 0" id="planet-mars">
                         <a-entity class="planet-spin" rotation="0 0 0">
-                            <a-sphere radius="0.17" material="src: url(images/mars.jpg);"></a-sphere>
+                            <a-sphere radius="0.11" material="src: url(images/mars.jpg);"></a-sphere>
                             <a-animation attribute="rotation" to="0 360 0" dur="9000" easing="linear" repeat="indefinite"></a-animation>
                         </a-entity>
                     </a-entity>
@@ -333,9 +325,9 @@
 
                 <!-- JUPITER -->
                 <a-entity class="orbit" rotation="0 0 0" id="orbit-jupiter">
-                    <a-entity class="planet" position="4.3 0 0" rotation="0 0 0" id="planet-jupiter">
+                    <a-entity class="planet" position="3.5 0 0" rotation="0 0 0" id="planet-jupiter">
                         <a-entity class="planet-spin" rotation="0 0 0">
-                            <a-sphere radius="0.38" material="src: url(images/jupiter.jpg);"></a-sphere>
+                            <a-sphere radius="0.25" material="src: url(images/jupiter.jpg);"></a-sphere>
                             <a-animation attribute="rotation" to="0 360 0" dur="10000" easing="linear" repeat="indefinite"></a-animation>
                         </a-entity>
                     </a-entity>
@@ -344,10 +336,10 @@
 
                 <!-- SATURN (with ring) -->
                 <a-entity class="orbit" rotation="0 0 0" id="orbit-saturn">
-                    <a-entity class="planet" position="5.2 0 0" rotation="0 0 0" id="planet-saturn">
+                    <a-entity class="planet" position="4.3 0 0" rotation="0 0 0" id="planet-saturn">
                         <a-entity class="planet-spin" rotation="0 0 0">
-                            <a-sphere radius="0.32" material="src: url(images/saturn.jpg);"></a-sphere>
-                            <a-ring radius-inner="0.48" radius-outer="0.8"
+                            <a-sphere radius="0.22" material="src: url(images/saturn.jpg);"></a-sphere>
+                            <a-ring radius-inner="0.32" radius-outer="0.55"
                                     material="src: url(images/saturn_ring.png); transparent: true; side: double;"
                                     rotation="90 0 0"></a-ring>
                             <a-animation attribute="rotation" to="0 360 0" dur="11000" easing="linear" repeat="indefinite"></a-animation>
@@ -358,10 +350,10 @@
 
                 <!-- URANUS (with thin ring) -->
                 <a-entity class="orbit" rotation="0 0 0" id="orbit-uranus">
-                    <a-entity class="planet" position="6.1 0 0" rotation="0 0 0" id="planet-uranus">
+                    <a-entity class="planet" position="5.1 0 0" rotation="0 0 0" id="planet-uranus">
                         <a-entity class="planet-spin" rotation="0 0 0">
-                            <a-sphere radius="0.26" material="src: url(images/uranus.jpg);"></a-sphere>
-                            <a-ring radius-inner="0.38" radius-outer="0.6"
+                            <a-sphere radius="0.18" material="src: url(images/uranus.jpg);"></a-sphere>
+                            <a-ring radius-inner="0.25" radius-outer="0.4"
                                     material="src: url(images/uranus_ring.png); transparent: true; side: double; opacity:0.8"
                                     rotation="90 0 0"></a-ring>
                             <a-animation attribute="rotation" to="0 360 0" dur="12000" easing="linear" repeat="indefinite"></a-animation>
@@ -372,51 +364,54 @@
 
                 <!-- NEPTUNE -->
                 <a-entity class="orbit" rotation="0 0 0" id="orbit-neptune">
-                    <a-entity class="planet" position="7.0 0 0" rotation="0 0 0" id="planet-neptune">
+                    <a-entity class="planet" position="5.9 0 0" rotation="0 0 0" id="planet-neptune">
                         <a-entity class="planet-spin" rotation="0 0 0">
-                            <a-sphere radius="0.26" material="src: url(images/neptune.jpg);"></a-sphere>
+                            <a-sphere radius="0.18" material="src: url(images/neptune.jpg);"></a-sphere>
                             <a-animation attribute="rotation" to="0 360 0" dur="13000" easing="linear" repeat="indefinite"></a-animation>
                         </a-entity>
                     </a-entity>
                     <a-animation attribute="rotation" to="0 360 0" dur="22000" easing="linear" repeat="indefinite"></a-animation>
                 </a-entity>
 
-                <!-- decorative stars (spread wide) -->
+                <!-- decorative stars (tiny, spread wider) -->
                 <a-entity position="0 0 0">
-                    <a-sphere radius="0.04" color="#fff" position="1.8 1.0 1.5"></a-sphere>
-                    <a-sphere radius="0.04" color="#fff" position="-1.5 1.2 2.0"></a-sphere>
-                    <a-sphere radius="0.04" color="#fff" position="1.2 -0.8 2.5"></a-sphere>
-                    <a-sphere radius="0.04" color="#fff" position="-2.0 0.6 2.2"></a-sphere>
-                    <a-sphere radius="0.04" color="#fff" position="2.2 1.3 -1.2"></a-sphere>
-                    <a-sphere radius="0.04" color="#fff" position="-1.2 -1.2 2.8"></a-sphere>
-                    <a-sphere radius="0.04" color="#fff" position="0.5 1.8 1.0"></a-sphere>
-                    <a-sphere radius="0.04" color="#fff" position="-1.8 -0.5 2.0"></a-sphere>
+                    <a-sphere radius="0.03" color="#fff" position="1.2 0.6 1.0"></a-sphere>
+                    <a-sphere radius="0.03" color="#fff" position="-1.0 0.8 1.5"></a-sphere>
+                    <a-sphere radius="0.03" color="#fff" position="0.8 -0.5 2.0"></a-sphere>
+                    <a-sphere radius="0.03" color="#fff" position="-1.4 0.3 1.8"></a-sphere>
+                    <a-sphere radius="0.03" color="#fff" position="1.8 0.9 -0.8"></a-sphere>
+                    <a-sphere radius="0.03" color="#fff" position="-0.9 -0.9 2.2"></a-sphere>
                 </a-entity>
-            </a-entity> <!-- solar-system container -->
+            </a-entity> <!-- solar-system -->
         </a-marker>
     </a-scene>
 
-    <!-- Randomize orbit start positions + marker feedback -->
+    <!-- Marker events + random orbit start positions (ensures planets are not aligned) -->
     <script>
         (function() {
+            // Randomize initial rotation of each orbit container so planets start at different angles
             const orbitIds = [
                 'orbit-mercury', 'orbit-venus', 'orbit-earth', 'orbit-mars',
                 'orbit-jupiter', 'orbit-saturn', 'orbit-uranus', 'orbit-neptune'
             ];
+
+            // Wait for each orbit to be fully loaded before setting random rotation
             orbitIds.forEach(id => {
                 const orbit = document.getElementById(id);
                 if (orbit) {
                     orbit.addEventListener('loaded', () => {
-                        orbit.setAttribute('rotation', `0 ${Math.random() * 360} 0`);
+                        const randomAngle = Math.random() * 360;
+                        orbit.setAttribute('rotation', `0 ${randomAngle} 0`);
                     });
                 }
             });
 
+            // marker feedback (no emoji)
             const marker = document.getElementById('solar-marker');
             const infoDiv = document.getElementById('infoMessage');
             if (marker) {
                 marker.addEventListener('markerFound', () => {
-                    infoDiv.innerHTML = 'Marker FOUND – spin, drag & zoom the container';
+                    infoDiv.innerHTML = 'Marker FOUND – Solar system visible';
                 });
                 marker.addEventListener('markerLost', () => {
                     infoDiv.innerHTML = 'Marker lost – show HIRO to camera';
@@ -424,7 +419,7 @@
             }
         })();
     </script>
-    <!-- chatbot placeholder (keep as original) -->
+    <!-- chatbot (kept as original) -->
     <script src="ai-chatbot.js"></script>
 </body>
 </html>
