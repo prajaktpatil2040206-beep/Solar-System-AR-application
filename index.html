@@ -75,6 +75,77 @@
             100% { opacity: 0.2; transform: scale(1); }
         }
 
+        /* ===== WELCOME MODAL ===== */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.5s;
+        }
+        .modal-content {
+            background: rgba(20, 30, 50, 0.8);
+            border: 2px solid #0ff;
+            border-radius: 50px;
+            padding: 3rem 2rem;
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 0 60px #0ff;
+            animation: modalGlow 2s infinite alternate;
+        }
+        @keyframes modalGlow {
+            from { box-shadow: 0 0 40px #0ff; }
+            to { box-shadow: 0 0 80px #f0f; }
+        }
+        .modal-content i {
+            font-size: 5rem;
+            color: #0ff;
+            margin-bottom: 1rem;
+            filter: drop-shadow(0 0 20px #0ff);
+        }
+        .modal-content h2 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(45deg, #fff, #aaddff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .modal-content p {
+            font-size: 1.3rem;
+            margin-bottom: 2rem;
+            color: rgba(255,255,255,0.9);
+        }
+        .modal-btn {
+            background: linear-gradient(45deg, #0066aa, #440088);
+            border: 2px solid #0ff;
+            border-radius: 60px;
+            padding: 1rem 3rem;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: white;
+            cursor: pointer;
+            transition: 0.3s;
+            box-shadow: 0 0 30px #0ff;
+            display: inline-block;
+            text-decoration: none;
+        }
+        .modal-btn:hover {
+            transform: scale(1.1);
+            background: linear-gradient(45deg, #0088ff, #6600cc);
+            box-shadow: 0 0 60px #0ff;
+        }
+
         /* ===== MAIN CONTAINER ===== */
         .container {
             position: relative;
@@ -347,6 +418,16 @@
     </style>
 </head>
 <body>
+    <!-- WELCOME MODAL -->
+    <div id="welcomeModal" class="modal-overlay">
+        <div class="modal-content">
+            <i class="fas fa-mobile-alt"></i>
+            <h2>📱 Mobile Recommended</h2>
+            <p>For the best augmented reality experience, please use a smartphone or tablet. Ready to explore the cosmos?</p>
+            <button class="modal-btn" id="startExploringBtn"><i class="fas fa-rocket"></i> Start Exploring</button>
+        </div>
+    </div>
+
     <!-- Progress bar -->
     <div id="progress-bar"></div>
 
@@ -403,13 +484,14 @@
             </div>
         </div>
 
-        <!-- Download Marker with embedded image -->
+        <!-- Download Marker with local image file -->
         <div class="download-area">
             <button class="download-btn" id="downloadMarkerBtn">
                 <i class="fas fa-download"></i> DOWNLOAD MARKER
             </button>
             <div>
-                <img id="markerPreview" class="marker-preview" src="#" alt="HIRO Marker">
+                <!-- The image will be loaded from /images/hiro_marker.png -->
+                <img id="markerPreview" class="marker-preview" src="images/hiro_marker.png" alt="HIRO Marker" onerror="this.src='https://via.placeholder.com/150?text=Marker'">
             </div>
             <p style="color: rgba(255,255,255,0.7); margin-top: 0.5rem; font-size: 0.9rem;">
                 Click image or button to download.
@@ -423,22 +505,28 @@
         </div>
     </div>
 
-    <!-- Embedded Hiro marker image (base64) -->
+    <!-- Download functionality using local file -->
     <script>
-        // Dummy base64 (tiny transparent PNG). Replace with actual base64 of hiro.png for production.
-        const markerBase64 = "iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAAAoElEQVR4nO3aMQ6AIAwF0E7j4TyczcHNJZggURs1pYVif0vyFgIDLc+vgKjMzMwMAICRc0ZrTTHGk5zzOefzfd8p5z2ltJRSlFJKKZVzzjnnlFJKKaWUcs45pZRSSinlnHPOOaeUUkoppZRzzjnnnFJKKaWUcs4555xzzimllFJKKeecU0oppZRyzjnnnFN+dzjn/H+fGQD8iJmZmZl9xQZNIiNsf0QT7QAAAABJRU5ErkJggg==";
-        
-        document.getElementById('markerPreview').src = 'data:image/png;base64,' + markerBase64;
-
+        // Function to download the marker file
         function downloadMarker() {
+            // Create a link to the local file
             const link = document.createElement('a');
-            link.download = 'hiro_marker.png';
-            link.href = 'data:image/png;base64,' + markerBase64;
+            link.href = 'images/hiro_marker.png';
+            link.download = 'hiro_marker.png'; // suggested filename
+            document.body.appendChild(link);
             link.click();
+            document.body.removeChild(link);
         }
 
         document.getElementById('downloadMarkerBtn').addEventListener('click', downloadMarker);
         document.getElementById('markerPreview').addEventListener('click', downloadMarker);
+    </script>
+
+    <!-- Modal dismissal -->
+    <script>
+        document.getElementById('startExploringBtn').addEventListener('click', function() {
+            document.getElementById('welcomeModal').style.display = 'none';
+        });
     </script>
 
     <!-- 3D Solar System Preview Script with Orbits -->
