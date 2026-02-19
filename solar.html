@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>AR Solar System – glass explorer · persistent marker</title>
+    <title>AR Solar System – glass explorer · persistent + buttons</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <!-- A-Frame + AR.js -->
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
@@ -60,7 +60,7 @@
         }
 
         .info-card {
-            bottom: 25px;
+            bottom: 100px;  /* raise to make room for buttons */
             left: 50%;
             transform: translateX(-50%);
             width: auto;
@@ -77,14 +77,71 @@
             backdrop-filter: blur(14px) saturate(200%);
             line-height: 1.5;
         }
+
+        /* navigation buttons (glass, interactive) */
+        .nav-panel {
+            position: absolute;
+            bottom: 25px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 12px;
+            background: rgba(10, 20, 30, 0.3);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 60px;
+            padding: 12px 20px;
+            z-index: 1100;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .nav-btn {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            font-size: 1.8rem;
+            font-weight: 400;
+            width: 60px;
+            height: 60px;
+            border-radius: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.1s ease;
+            box-shadow: 0 5px 10px rgba(0,0,0,0.3);
+            line-height: 1;
+        }
+        .nav-btn:active {
+            background: rgba(255,255,255,0.3);
+            transform: scale(0.95);
+        }
+        .nav-btn.zoom {
+            font-size: 2.2rem;
+        }
+        .nav-panel .spacer {
+            width: 20px;
+        }
     </style>
 </head>
 <body>
     <!-- glass back button -->
     <a href="index.html" class="glass-panel back-btn">← Home</a>
 
-    <!-- main info glass card (no emojis) -->
-    <div class="glass-panel info-card" id="infoMessage">Point at HIRO marker – 1 finger rotate · 2 fingers drag & zoom</div>
+    <!-- main info glass card -->
+    <div class="glass-panel info-card" id="infoMessage">Point at HIRO marker – 8s persistence · buttons below</div>
+
+    <!-- navigation buttons (pan + zoom) -->
+    <div class="nav-panel">
+        <div class="nav-btn" id="pan-left">←</div>
+        <div class="nav-btn" id="pan-right">→</div>
+        <div class="nav-btn" id="pan-up">↑</div>
+        <div class="nav-btn" id="pan-down">↓</div>
+        <div class="spacer"></div>
+        <div class="nav-btn zoom" id="zoom-in">+</div>
+        <div class="nav-btn zoom" id="zoom-out">−</div>
+    </div>
 
     <!-- ==========  IMPROVED MARKER PERSISTENCE COMPONENT ========== -->
     <script>
@@ -105,7 +162,7 @@
                 // temp vectors for decomposition
                 this.pos = new THREE.Vector3();
                 this.quat = new THREE.Quaternion();
-                this.scale = new THREE.Vector3();
+                this.scaleVec = new THREE.Vector3();
 
                 // marker event listeners
                 this.markerFoundHandler = this.onMarkerFound.bind(this);
@@ -160,12 +217,12 @@
                     const worldMatrix = markerObj.matrixWorld;
 
                     // decompose to position / quaternion / scale
-                    worldMatrix.decompose(this.pos, this.quat, this.scale);
+                    worldMatrix.decompose(this.pos, this.quat, this.scaleVec);
 
                     // apply to root entity (solar-root)
                     this.el.object3D.position.copy(this.pos);
                     this.el.object3D.quaternion.copy(this.quat);
-                    this.el.object3D.scale.copy(this.scale);
+                    this.el.object3D.scale.copy(this.scaleVec);
 
                     // update last seen timestamp each frame to keep alive while detected
                     this.lastSeen = Date.now();
@@ -178,7 +235,6 @@
                 } else {
                     // marker lost: check timeout, but we do nothing here (timeout handles hiding)
                     // we keep the last known transform (already set)
-                    // but we must ensure visibility based on timeout
                     if (this.isVisible && (Date.now() - this.lastSeen >= this.data.timeout)) {
                         this.el.setAttribute('visible', false);
                         this.isVisible = false;
@@ -362,6 +418,40 @@
                 }
             }
         });
+
+        // Button navigation (pan and zoom)
+        window.addEventListener('load', function() {
+            const solarSystem = document.getElementById('solar-system');
+            if (!solarSystem) return;
+
+            const panStep = 0.1;      // translation step in marker plane units
+            const zoomFactor = 1.2;    // scale multiplier
+
+            function getCurrentScale() {
+                return solarSystem.object3D.scale.x;
+            }
+
+            document.getElementById('pan-left').addEventListener('click', () => {
+                solarSystem.object3D.position.x -= panStep;
+            });
+            document.getElementById('pan-right').addEventListener('click', () => {
+                solarSystem.object3D.position.x += panStep;
+            });
+            document.getElementById('pan-up').addEventListener('click', () => {
+                solarSystem.object3D.position.y += panStep;
+            });
+            document.getElementById('pan-down').addEventListener('click', () => {
+                solarSystem.object3D.position.y -= panStep;
+            });
+            document.getElementById('zoom-in').addEventListener('click', () => {
+                const scale = getCurrentScale() * zoomFactor;
+                solarSystem.object3D.scale.set(scale, scale, scale);
+            });
+            document.getElementById('zoom-out').addEventListener('click', () => {
+                const scale = getCurrentScale() / zoomFactor;
+                solarSystem.object3D.scale.set(scale, scale, scale);
+            });
+        });
     </script>
 
     <!-- AR Scene -->
@@ -373,38 +463,40 @@
 
         <a-entity camera></a-entity>
 
-        <!-- HIRO marker (still emits events) -->
+        <!-- HIRO marker (only for detection, no lights inside) -->
         <a-marker preset="hiro" id="solar-marker" emitevents="true" registerevents>
-            <a-light type="ambient" color="#ffffff" intensity="0.3"></a-light>
-            <a-light type="point" intensity="2" position="0 0 0" color="#ffaa00"></a-light>
+            <!-- lights moved outside to persistent root -->
         </a-marker>
 
         <!-- ========== PERSISTENT ROOT (follows marker, stays 8s after loss) ========== -->
         <a-entity id="solar-root" marker-persist="marker: #solar-marker; timeout: 8000" visible="false">
-            <!-- All planets (no orbit rings) inside solar-system (target for gestures) -->
-            <a-entity id="solar-system">
-                <!-- SUN -->
-                <a-sphere radius="0.25" position="0 0 0"
-                          material="src: url(images/sun.jpg); emissive: #ff6600; emissiveIntensity: 1.5;"></a-sphere>
+            <!-- Ambient and point light (always on) -->
+            <a-light type="ambient" color="#ffffff" intensity="0.4"></a-light>
+            <a-light type="point" intensity="3" position="0 0 0" color="#ffdd99"></a-light>
 
-                <!-- ===== PLANETS (each inside revolving container) ===== -->
-                <!-- MERCURY -->
+            <!-- All planets inside solar-system (target for gestures) -->
+            <a-entity id="solar-system">
+                <!-- SUN (emissive, also acts as light source) -->
+                <a-sphere radius="0.5" position="0 0 0"
+                          material="src: url(images/sun.jpg); emissive: #ff8800; emissiveIntensity: 1.8;"></a-sphere>
+
+                <!-- ===== PLANETS with adjusted sizes and distances ===== -->
+                <!-- MERCURY: small, close -->
                 <a-entity class="orbit" rotation="0 0 0" id="orbit-mercury">
-                    <a-entity class="planet" position="0.5 0 0" rotation="0 0 0" id="planet-mercury">
+                    <a-entity class="planet" position="0.9 0 0" rotation="0 0 0">
                         <a-entity class="planet-spin" rotation="0 0 0">
-                            <a-sphere radius="0.05" material="src: url(images/mercury.jpg);"></a-sphere>
+                            <a-sphere radius="0.08" material="src: url(images/mercury.jpg);"></a-sphere>
                             <a-animation attribute="rotation" to="0 360 0" dur="4000" easing="linear" repeat="indefinite"></a-animation>
                         </a-entity>
                     </a-entity>
-                    <!-- Revolution around the sun -->
                     <a-animation attribute="rotation" to="0 360 0" dur="8000" easing="linear" repeat="indefinite"></a-animation>
                 </a-entity>
 
-                <!-- VENUS -->
+                <!-- VENUS: similar to Earth -->
                 <a-entity class="orbit" rotation="0 0 0" id="orbit-venus">
-                    <a-entity class="planet" position="0.7 0 0" rotation="0 0 0" id="planet-venus">
+                    <a-entity class="planet" position="1.3 0 0" rotation="0 0 0">
                         <a-entity class="planet-spin" rotation="0 0 0">
-                            <a-sphere radius="0.06" material="src: url(images/venus.jpg);"></a-sphere>
+                            <a-sphere radius="0.12" material="src: url(images/venus.jpg);"></a-sphere>
                             <a-animation attribute="rotation" to="0 360 0" dur="6000" easing="linear" repeat="indefinite"></a-animation>
                         </a-entity>
                     </a-entity>
@@ -413,43 +505,43 @@
 
                 <!-- EARTH -->
                 <a-entity class="orbit" rotation="0 0 0" id="orbit-earth">
-                    <a-entity class="planet" position="0.9 0 0" rotation="0 0 0" id="planet-earth">
+                    <a-entity class="planet" position="1.7 0 0" rotation="0 0 0">
                         <a-entity class="planet-spin" rotation="0 0 0">
-                            <a-sphere radius="0.065" material="src: url(images/earth.jpg);"></a-sphere>
+                            <a-sphere radius="0.13" material="src: url(images/earth.jpg);"></a-sphere>
                             <a-animation attribute="rotation" to="0 360 0" dur="8000" easing="linear" repeat="indefinite"></a-animation>
                         </a-entity>
                     </a-entity>
                     <a-animation attribute="rotation" to="0 360 0" dur="12000" easing="linear" repeat="indefinite"></a-animation>
                 </a-entity>
 
-                <!-- MARS -->
+                <!-- MARS: reddish, smaller -->
                 <a-entity class="orbit" rotation="0 0 0" id="orbit-mars">
-                    <a-entity class="planet" position="1.1 0 0" rotation="0 0 0" id="planet-mars">
+                    <a-entity class="planet" position="2.1 0 0" rotation="0 0 0">
                         <a-entity class="planet-spin" rotation="0 0 0">
-                            <a-sphere radius="0.055" material="src: url(images/mars.jpg);"></a-sphere>
+                            <a-sphere radius="0.1" material="src: url(images/mars.jpg);"></a-sphere>
                             <a-animation attribute="rotation" to="0 360 0" dur="9000" easing="linear" repeat="indefinite"></a-animation>
                         </a-entity>
                     </a-entity>
                     <a-animation attribute="rotation" to="0 360 0" dur="14000" easing="linear" repeat="indefinite"></a-animation>
                 </a-entity>
 
-                <!-- JUPITER -->
+                <!-- JUPITER: large -->
                 <a-entity class="orbit" rotation="0 0 0" id="orbit-jupiter">
-                    <a-entity class="planet" position="1.5 0 0" rotation="0 0 0" id="planet-jupiter">
+                    <a-entity class="planet" position="2.8 0 0" rotation="0 0 0">
                         <a-entity class="planet-spin" rotation="0 0 0">
-                            <a-sphere radius="0.12" material="src: url(images/jupiter.jpg);"></a-sphere>
+                            <a-sphere radius="0.25" material="src: url(images/jupiter.jpg);"></a-sphere>
                             <a-animation attribute="rotation" to="0 360 0" dur="10000" easing="linear" repeat="indefinite"></a-animation>
                         </a-entity>
                     </a-entity>
                     <a-animation attribute="rotation" to="0 360 0" dur="16000" easing="linear" repeat="indefinite"></a-animation>
                 </a-entity>
 
-                <!-- SATURN (with its own ring) -->
+                <!-- SATURN: with ring -->
                 <a-entity class="orbit" rotation="0 0 0" id="orbit-saturn">
-                    <a-entity class="planet" position="1.9 0 0" rotation="0 0 0" id="planet-saturn">
+                    <a-entity class="planet" position="3.6 0 0" rotation="0 0 0">
                         <a-entity class="planet-spin" rotation="0 0 0">
-                            <a-sphere radius="0.1" material="src: url(images/saturn.jpg);"></a-sphere>
-                            <a-ring radius-inner="0.15" radius-outer="0.25"
+                            <a-sphere radius="0.22" material="src: url(images/saturn.jpg);"></a-sphere>
+                            <a-ring radius-inner="0.3" radius-outer="0.45"
                                     material="src: url(images/saturn_ring.png); transparent: true; side: double;"
                                     rotation="90 0 0"></a-ring>
                             <a-animation attribute="rotation" to="0 360 0" dur="11000" easing="linear" repeat="indefinite"></a-animation>
@@ -458,12 +550,12 @@
                     <a-animation attribute="rotation" to="0 360 0" dur="18000" easing="linear" repeat="indefinite"></a-animation>
                 </a-entity>
 
-                <!-- URANUS (with its own ring) -->
+                <!-- URANUS: with thin ring -->
                 <a-entity class="orbit" rotation="0 0 0" id="orbit-uranus">
-                    <a-entity class="planet" position="2.3 0 0" rotation="0 0 0" id="planet-uranus">
+                    <a-entity class="planet" position="4.4 0 0" rotation="0 0 0">
                         <a-entity class="planet-spin" rotation="0 0 0">
-                            <a-sphere radius="0.08" material="src: url(images/uranus.jpg);"></a-sphere>
-                            <a-ring radius-inner="0.12" radius-outer="0.2"
+                            <a-sphere radius="0.18" material="src: url(images/uranus.jpg);"></a-sphere>
+                            <a-ring radius-inner="0.24" radius-outer="0.35"
                                     material="src: url(images/uranus_ring.png); transparent: true; side: double; opacity:0.8"
                                     rotation="90 0 0"></a-ring>
                             <a-animation attribute="rotation" to="0 360 0" dur="12000" easing="linear" repeat="indefinite"></a-animation>
@@ -472,25 +564,15 @@
                     <a-animation attribute="rotation" to="0 360 0" dur="20000" easing="linear" repeat="indefinite"></a-animation>
                 </a-entity>
 
-                <!-- NEPTUNE -->
+                <!-- NEPTUNE: deep blue -->
                 <a-entity class="orbit" rotation="0 0 0" id="orbit-neptune">
-                    <a-entity class="planet" position="2.7 0 0" rotation="0 0 0" id="planet-neptune">
+                    <a-entity class="planet" position="5.2 0 0" rotation="0 0 0">
                         <a-entity class="planet-spin" rotation="0 0 0">
-                            <a-sphere radius="0.08" material="src: url(images/neptune.jpg);"></a-sphere>
+                            <a-sphere radius="0.18" material="src: url(images/neptune.jpg);"></a-sphere>
                             <a-animation attribute="rotation" to="0 360 0" dur="13000" easing="linear" repeat="indefinite"></a-animation>
                         </a-entity>
                     </a-entity>
                     <a-animation attribute="rotation" to="0 360 0" dur="22000" easing="linear" repeat="indefinite"></a-animation>
-                </a-entity>
-
-                <!-- decorative stars (tiny) -->
-                <a-entity position="0 0 0">
-                    <a-sphere radius="0.02" color="#fff" position="0.5 0.3 0.5"></a-sphere>
-                    <a-sphere radius="0.02" color="#fff" position="-0.4 0.5 0.6"></a-sphere>
-                    <a-sphere radius="0.02" color="#fff" position="0.3 -0.2 1.0"></a-sphere>
-                    <a-sphere radius="0.02" color="#fff" position="-0.6 0.1 0.8"></a-sphere>
-                    <a-sphere radius="0.02" color="#fff" position="0.8 0.4 -0.3"></a-sphere>
-                    <a-sphere radius="0.02" color="#fff" position="-0.3 -0.4 1.2"></a-sphere>
                 </a-entity>
             </a-entity> <!-- solar-system -->
         </a-entity> <!-- solar-root -->
@@ -521,10 +603,10 @@
             const infoDiv = document.getElementById('infoMessage');
             if (marker) {
                 marker.addEventListener('markerFound', () => {
-                    infoDiv.innerHTML = 'Marker FOUND – Solar system visible (persistent for 8s after loss)';
+                    infoDiv.innerHTML = '✅ Marker FOUND – model locked to marker (8s persistence)';
                 });
                 marker.addEventListener('markerLost', () => {
-                    infoDiv.innerHTML = 'Marker lost – keeping model for 8s, show HIRO again';
+                    infoDiv.innerHTML = '⏳ Marker lost – model frozen for 8s, show HIRO again';
                 });
             }
         })();
