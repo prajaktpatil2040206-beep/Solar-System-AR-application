@@ -1,8 +1,8 @@
-// ai-chatbot.js – Space AI Assistant (Gemini 2.0 Flash, fixed auth)
+// ai-chatbot.js – Space AI Assistant (Gemini 2.0 Flash, header auth)
 
 (function() {
    const API_KEY = process.env.GEMINI_API_KEY;
-    const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + API_KEY;
+    const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
     // Inject styles (same as before)
     const style = document.createElement('style');
@@ -272,11 +272,12 @@
         addMessage('bot', 'Thinking...', true); // temporary
 
         try {
-            console.log('Sending request to Gemini API (key in URL)...');
+            console.log('Sending request to Gemini API (header auth)...');
             const response = await fetch(API_URL, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'X-goog-api-key': API_KEY
                 },
                 body: JSON.stringify({
                     contents: [{
@@ -288,18 +289,15 @@
             });
 
             console.log('Response status:', response.status);
-            
+            const responseText = await response.text();
+            console.log('Response body:', responseText);
+
             if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`API error ${response.status}: ${errorText}`);
+                throw new Error(`API error ${response.status}: ${responseText}`);
             }
 
-            const data = await response.json();
-            // Extract the reply text
-            const reply = data.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (!reply) {
-                throw new Error('Invalid response structure from API');
-            }
+            const data = JSON.parse(responseText);
+            const reply = data.candidates[0].content.parts[0].text;
 
             removeLastBotMessage();
             addMessage('bot', reply, false, true);
