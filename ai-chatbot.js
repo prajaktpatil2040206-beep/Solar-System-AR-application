@@ -1,8 +1,8 @@
-// ai-chatbot.js – Space AI Assistant (Gemini 2.0 Flash, header auth)
+// ai-chatbot.js – Space AI Assistant (Gemini 2.0 Flash, fixed auth)
 
 (function() {
     const API_KEY = 'AIzaSyBvX3DblO1_ELqWo07F5r5rDXhxBPqRqWk';
-    const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+    const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + API_KEY;
 
     // Inject styles (same as before)
     const style = document.createElement('style');
@@ -272,12 +272,11 @@
         addMessage('bot', 'Thinking...', true); // temporary
 
         try {
-            console.log('Sending request to Gemini API (header auth)...');
+            console.log('Sending request to Gemini API (key in URL)...');
             const response = await fetch(API_URL, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'X-goog-api-key': API_KEY
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
                     contents: [{
@@ -289,15 +288,18 @@
             });
 
             console.log('Response status:', response.status);
-            const responseText = await response.text();
-            console.log('Response body:', responseText);
-
+            
             if (!response.ok) {
-                throw new Error(`API error ${response.status}: ${responseText}`);
+                const errorText = await response.text();
+                throw new Error(`API error ${response.status}: ${errorText}`);
             }
 
-            const data = JSON.parse(responseText);
-            const reply = data.candidates[0].content.parts[0].text;
+            const data = await response.json();
+            // Extract the reply text
+            const reply = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (!reply) {
+                throw new Error('Invalid response structure from API');
+            }
 
             removeLastBotMessage();
             addMessage('bot', reply, false, true);
