@@ -77,6 +77,7 @@
             line-height: 1;
             transition: 0.2s;
             backdrop-filter: blur(8px);
+            font-family: 'Arial', sans-serif;
         }
         .close-btn:hover {
             background: rgba(255,255,255,0.3);
@@ -103,6 +104,10 @@
             background: rgba(58, 110, 165, 0.9);
             border-color: #aac9ff;
             box-shadow: 0 0 20px #5a9eff;
+        }
+        .read-btn.stopping {
+            background: rgba(160, 60, 60, 0.8);
+            border-color: #ffa07a;
         }
 
         #toggle-info {
@@ -172,8 +177,8 @@
     <a href="index.html" class="back-btn">← Solar System</a>
     <div class="debug-hint" id="debug-status">Waiting for HIRO marker...</div>
 
-    <!-- Toggle button (appears when info panel is hidden) -->
-    <button id="toggle-info">🌍 Show Planet Info</button>
+    <!-- Toggle button (appears when info panel is hidden) - no emoji -->
+    <button id="toggle-info">Show Info</button>
 
     <!-- Robust gesture handler (scale + rotate) with multi-touch -->
     <script>
@@ -429,7 +434,7 @@
             const data = planetData[planetKey];
 
             if (!data) {
-                infoPanel.innerHTML = '<h2>✨ Planet not found</h2>';
+                infoPanel.innerHTML = '<h2>Planet not found</h2>';
                 return;
             }
 
@@ -488,16 +493,16 @@
             }
             planetSystem.appendChild(stars);
 
-            // ----- Glass info panel content -----
+            // ----- Glass info panel content (no emojis) -----
             infoPanel.innerHTML = `
-                <button class="close-btn" id="closePanel">✕</button>
-                <h2>🪐 ${data.name}</h2>
+                <button class="close-btn" id="closePanel">X</button>
+                <h2>${data.name}</h2>
                 <p><strong>Diameter:</strong> ${data.diameter}</p>
                 <p><strong>Distance from Sun:</strong> ${data.distance}</p>
                 <p><strong>Day length:</strong> ${data.dayLength}</p>
                 <p><strong>Year length:</strong> ${data.yearLength}</p>
                 <p><strong>Moons:</strong> ${data.moons} (${data.moonList.length} shown in AR)</p>
-                <button class="read-btn" id="readBtn">🔊 Read Aloud</button>
+                <button class="read-btn" id="readBtn">Listen</button>
             `;
 
             // ----- Panel controls -----
@@ -511,12 +516,48 @@
                 toggleBtn.style.display = 'none';
             });
 
-            // Text-to-speech
-            document.getElementById('readBtn').addEventListener('click', () => {
+            // ----- Text-to-speech with toggle (Listen / Stop) -----
+            const readBtn = document.getElementById('readBtn');
+            let utterance = null;
+
+            function stopSpeaking() {
+                if (window.speechSynthesis) {
+                    window.speechSynthesis.cancel();
+                }
+                utterance = null;
+                readBtn.textContent = 'Listen';
+                readBtn.classList.remove('stopping');
+            }
+
+            function startSpeaking() {
                 const text = `Welcome to ${data.name}. Diameter: ${data.diameter}. Distance from Sun: ${data.distance}. Day length: ${data.dayLength}. Year length: ${data.yearLength}. Number of moons: ${data.moons}.`;
-                const utterance = new SpeechSynthesisUtterance(text);
+                utterance = new SpeechSynthesisUtterance(text);
+                utterance.onend = () => {
+                    readBtn.textContent = 'Listen';
+                    readBtn.classList.remove('stopping');
+                    utterance = null;
+                };
+                utterance.onerror = () => {
+                    readBtn.textContent = 'Listen';
+                    readBtn.classList.remove('stopping');
+                    utterance = null;
+                };
                 window.speechSynthesis.speak(utterance);
+                readBtn.textContent = 'Stop';
+                readBtn.classList.add('stopping');
+            }
+
+            readBtn.addEventListener('click', () => {
+                if (utterance) {
+                    // Currently speaking -> stop
+                    stopSpeaking();
+                } else {
+                    startSpeaking();
+                }
             });
+
+            // Ensure speech is cancelled if panel closed while speaking (optional)
+            // but not strictly necessary.
 
             // Marker events
             marker.addEventListener('markerFound', () => {
