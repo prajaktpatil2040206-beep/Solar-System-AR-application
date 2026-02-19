@@ -22,10 +22,10 @@
             touch-action: none; 
         }
 
-        /* ---- glassmorphism UI (cards & button) ---- */
+        /* ---- glassmorphism UI ---- */
         .glass-panel {
             position: absolute;
-            background: rgba(20, 30, 45, 0.35);      /* deep translucent base */
+            background: rgba(20, 30, 45, 0.35);
             backdrop-filter: blur(12px) saturate(180%);
             -webkit-backdrop-filter: blur(12px) saturate(180%);
             border: 1px solid rgba(255, 255, 255, 0.25);
@@ -40,7 +40,7 @@
             z-index: 1000;
         }
 
-        /* specific back button (still a glass button) */
+        /* back button (glass) */
         .back-btn {
             left: 20px;
             top: 20px;
@@ -75,51 +75,21 @@
             box-shadow: 0 15px 30px rgba(0, 0, 0, 0.5);
             font-size: 1rem;
             padding: 12px 28px;
-            pointer-events: none;   /* allow touches to pass through to canvas */
+            pointer-events: none;
             border-radius: 50px;
             backdrop-filter: blur(14px) saturate(200%);
             line-height: 1.5;
         }
-
-        /* small glass badge (extra card example) – hidden by default? optional, but keep as a subtle extra card */
-        .extra-card {
-            position: absolute;
-            top: 85px;
-            right: 20px;
-            background: rgba(20, 30, 45, 0.35);
-            backdrop-filter: blur(12px) saturate(180%);
-            border: 1px solid rgba(255,255,255,0.2);
-            border-radius: 30px;
-            padding: 8px 18px;
-            font-size: 0.9rem;
-            color: #eee;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-            z-index: 999;
-            pointer-events: none;   /* non‑interactive, just visual */
-        }
-        .extra-card span {
-            opacity: 0.9;
-        }
-
-        /* no emojis anywhere */
-        .no-emoji {
-            /* ensure no fallback */
-        }
     </style>
 </head>
 <body>
-    <!-- glass back button (no emoji) -->
+    <!-- glass back button -->
     <a href="index.html" class="glass-panel back-btn">← Home</a>
-
-    <!-- extra glass card: just a subtle "AR Solar System" label (another card) -->
-    <div class="extra-card">
-        <span>✦ SOLAR SYSTEM AR ✦</span>
-    </div>
 
     <!-- main info glass card (no emojis) -->
     <div class="glass-panel info-card" id="infoMessage">Point at HIRO marker – 1 finger rotate · 2 fingers drag & zoom anywhere</div>
 
-    <!-- gesture handler (unchanged logic, but cleaned comments) -->
+    <!-- gesture handler (unchanged, but ensures smooth interaction) -->
     <script>
         AFRAME.registerComponent('gesture-control', {
             init: function () {
@@ -303,12 +273,31 @@
             <a-light type="ambient" color="#ffffff" intensity="0.3"></a-light>
             <a-light type="point" intensity="2" position="0 0 0" color="#ffaa00"></a-light>
 
-            <!-- All planets inside solar-system entity -->
+            <!-- All planets + orbits inside solar-system entity -->
             <a-entity id="solar-system">
                 <!-- SUN -->
                 <a-sphere radius="0.25" position="0 0 0"
                           material="src: url(images/sun.jpg); emissive: #ff6600; emissiveIntensity: 1.5;"></a-sphere>
 
+                ===== ORBIT RINGS (static, semi-transparent) ===== -->
+                <!-- Mercury orbit -->
+                <a-torus radius="0.5" tube="0.008" rotation="90 0 0" color="#aaa" transparent="true" opacity="0.25" position="0 0 0"></a-torus>
+                <!-- Venus orbit -->
+                <a-torus radius="0.7" tube="0.008" rotation="90 0 0" color="#aaa" transparent="true" opacity="0.25" position="0 0 0"></a-torus>
+                <!-- Earth orbit -->
+                <a-torus radius="0.9" tube="0.008" rotation="90 0 0" color="#aaa" transparent="true" opacity="0.25" position="0 0 0"></a-torus>
+                <!-- Mars orbit -->
+                <a-torus radius="1.1" tube="0.008" rotation="90 0 0" color="#aaa" transparent="true" opacity="0.25" position="0 0 0"></a-torus>
+                <!-- Jupiter orbit -->
+                <a-torus radius="1.5" tube="0.012" rotation="90 0 0" color="#aaa" transparent="true" opacity="0.25" position="0 0 0"></a-torus>
+                <!-- Saturn orbit -->
+                <a-torus radius="1.9" tube="0.012" rotation="90 0 0" color="#aaa" transparent="true" opacity="0.25" position="0 0 0"></a-torus>
+                <!-- Uranus orbit -->
+                <a-torus radius="2.3" tube="0.012" rotation="90 0 0" color="#aaa" transparent="true" opacity="0.25" position="0 0 0"></a-torus>
+                <!-- Neptune orbit -->
+                <a-torus radius="2.7" tube="0.012" rotation="90 0 0" color="#aaa" transparent="true" opacity="0.25" position="0 0 0"></a-torus>
+
+                ===== PLANETS (each inside revolving container) ===== -->
                 <!-- MERCURY -->
                 <a-entity class="orbit" rotation="0 0 0" id="orbit-mercury">
                     <a-entity class="planet" position="0.5 0 0" rotation="0 0 0" id="planet-mercury">
@@ -378,7 +367,7 @@
                     <a-animation attribute="rotation" to="0 360 0" dur="18000" easing="linear" repeat="indefinite"></a-animation>
                 </a-entity>
 
-                <!-- URANUS (ring) -->
+                <!-- URANUS (with ring) -->
                 <a-entity class="orbit" rotation="0 0 0" id="orbit-uranus">
                     <a-entity class="planet" position="2.3 0 0" rotation="0 0 0" id="planet-uranus">
                         <a-entity class="planet-spin" rotation="0 0 0">
@@ -403,7 +392,7 @@
                     <a-animation attribute="rotation" to="0 360 0" dur="22000" easing="linear" repeat="indefinite"></a-animation>
                 </a-entity>
 
-                <!-- Stars (decorative) -->
+                <!-- decorative stars (small) -->
                 <a-entity position="0 0 0">
                     <a-sphere radius="0.02" color="#fff" position="0.5 0.3 0.5"></a-sphere>
                     <a-sphere radius="0.02" color="#fff" position="-0.4 0.5 0.6"></a-sphere>
@@ -416,10 +405,10 @@
         </a-marker>
     </a-scene>
 
-    <!-- Marker events + random orbit starts (no emojis) -->
+    <!-- Marker events + random orbit start positions -->
     <script>
         (function() {
-            // randomize starting positions
+            // randomize starting positions so planets are spread out
             const orbitIds = [
                 'orbit-mercury', 'orbit-venus', 'orbit-earth', 'orbit-mars',
                 'orbit-jupiter', 'orbit-saturn', 'orbit-uranus', 'orbit-neptune'
@@ -443,7 +432,7 @@
             });
         })();
     </script>
-    <!-- chatbot (kept as original, but not interfering) -->
+    <!-- chatbot (kept as original) -->
     <script src="ai-chatbot.js"></script>
 </body>
 </html>
