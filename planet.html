@@ -2,31 +2,41 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>AR Planet Explorer with Moons</title>
+    <title>AR Planet Explorer – glass UI + lighting</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <!-- A-Frame and AR.js -->
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
     <style>
-        body { margin: 0; overflow: hidden; font-family: 'Arial', sans-serif; }
+        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', 'Arial', sans-serif; }
         a-scene canvas { touch-action: none; }
+
+        /* ===== GLASSMORPHISM STYLES ===== */
+        .glass-panel {
+            background: rgba(20, 30, 45, 0.45);
+            backdrop-filter: blur(12px) saturate(180%);
+            -webkit-backdrop-filter: blur(12px) saturate(180%);
+            border: 1.5px solid rgba(255, 255, 255, 0.25);
+            border-radius: 30px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5), inset 0 1px 3px rgba(255,255,255,0.2);
+            color: white;
+            text-shadow: 0 2px 5px rgba(0,0,0,0.4);
+            transition: all 0.2s ease;
+        }
+
         #info-panel {
             position: absolute;
             bottom: 20px;
             left: 20px;
             right: 20px;
-            background: rgba(10, 20, 30, 0.9);
-            backdrop-filter: blur(10px);
-            color: white;
-            padding: 20px;
-            border-radius: 30px;
-            border: 2px solid #3a6ea5;
-            box-shadow: 0 0 30px rgba(0,160,255,0.5);
-            z-index: 1000;
-            max-width: 500px;
+            max-width: 520px;
             margin: 0 auto;
+            padding: 22px 25px;
+            z-index: 1000;
             pointer-events: auto;
-            transition: transform 0.3s, opacity 0.3s;
+            transform: translateY(0);
+            opacity: 1;
+            transition: transform 0.35s cubic-bezier(0.2, 0.9, 0.3, 1), opacity 0.25s;
         }
         #info-panel.hidden {
             transform: translateY(120%);
@@ -34,108 +44,138 @@
             pointer-events: none;
         }
         #info-panel h2 {
-            margin: 0 0 10px;
-            font-size: 2rem;
-            text-shadow: 0 0 10px cyan;
-            padding-right: 30px;
+            margin: 0 0 12px;
+            font-size: 2.2rem;
+            font-weight: 500;
+            letter-spacing: 1px;
+            text-shadow: 0 0 12px #7fc9ff;
+            padding-right: 35px;
+            color: #fff;
         }
         #info-panel p {
-            margin: 8px 0;
-            font-size: 1.1rem;
+            margin: 10px 0;
+            font-size: 1.15rem;
+            font-weight: 350;
+            line-height: 1.5;
+            color: rgba(255,255,255,0.95);
         }
         .close-btn {
             position: absolute;
-            top: 15px;
-            right: 20px;
-            background: rgba(255,255,255,0.2);
-            border: none;
+            top: 18px;
+            right: 22px;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.3);
             color: white;
-            font-size: 1.8rem;
+            font-size: 2rem;
             cursor: pointer;
-            width: 40px;
-            height: 40px;
+            width: 44px;
+            height: 44px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             line-height: 1;
             transition: 0.2s;
+            backdrop-filter: blur(8px);
         }
         .close-btn:hover {
-            background: rgba(255,255,255,0.4);
+            background: rgba(255,255,255,0.3);
+            border-color: rgba(255,255,255,0.8);
+            transform: scale(1.05);
         }
         .read-btn {
-            background: #2a4a7a;
-            border: none;
+            background: rgba(42, 74, 122, 0.7);
+            backdrop-filter: blur(8px);
+            border: 1.5px solid rgba(138, 179, 255, 0.7);
             color: white;
-            padding: 12px 25px;
-            font-size: 1.2rem;
-            border-radius: 40px;
+            padding: 14px 25px;
+            font-size: 1.25rem;
+            border-radius: 50px;
             cursor: pointer;
-            margin-top: 15px;
-            border: 1px solid #8ab3ff;
+            margin-top: 18px;
             transition: 0.3s;
             width: 100%;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 12px rgba(0, 30, 60, 0.6);
         }
         .read-btn:hover {
-            background: #3a6ea5;
-            box-shadow: 0 0 15px cyan;
+            background: rgba(58, 110, 165, 0.9);
+            border-color: #aac9ff;
+            box-shadow: 0 0 20px #5a9eff;
         }
+
         #toggle-info {
             position: absolute;
-            bottom: 20px;
+            bottom: 25px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(10, 20, 30, 0.9);
-            backdrop-filter: blur(10px);
-            color: white;
-            border: 2px solid #3a6ea5;
+            background: rgba(20, 30, 45, 0.6);
+            backdrop-filter: blur(16px) saturate(200%);
+            border: 2px solid rgba(138, 179, 255, 0.7);
             border-radius: 60px;
-            padding: 12px 30px;
-            font-size: 1.2rem;
+            padding: 14px 35px;
+            font-size: 1.25rem;
             cursor: pointer;
             z-index: 1001;
-            box-shadow: 0 0 20px cyan;
+            box-shadow: 0 0 25px rgba(0, 160, 255, 0.6);
             display: none;
+            color: white;
+            font-weight: 500;
+            letter-spacing: 0.5px;
             transition: 0.2s;
         }
         #toggle-info:hover {
-            background: #2a4a7a;
+            background: rgba(42, 74, 122, 0.8);
+            border-color: #b0d0ff;
         }
+
         .back-btn {
             position: absolute;
             top: 20px;
             left: 20px;
-            background: rgba(0,0,0,0.6);
+            background: rgba(0, 0, 0, 0.35);
+            backdrop-filter: blur(12px);
             color: white;
-            padding: 10px 20px;
-            border-radius: 30px;
+            padding: 12px 24px;
+            border-radius: 40px;
             text-decoration: none;
             z-index: 1001;
-            border: 1px solid #3a6ea5;
-            backdrop-filter: blur(5px);
+            border: 1.5px solid rgba(138, 179, 255, 0.5);
+            font-size: 1.1rem;
+            font-weight: 500;
+            transition: 0.2s;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.4);
         }
+        .back-btn:hover {
+            background: rgba(30, 50, 80, 0.7);
+            border-color: #8ab3ff;
+        }
+
         .debug-hint {
             position: absolute;
-            top: 80px;
+            top: 90px;
             left: 20px;
-            background: rgba(0,0,0,0.5);
-            color: #0f0;
-            padding: 5px 10px;
-            border-radius: 20px;
-            font-size: 12px;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(4px);
+            color: #b0ffb0;
+            padding: 6px 15px;
+            border-radius: 30px;
+            font-size: 0.85rem;
             z-index: 1000;
+            border: 1px solid #3a6ea5;
+            letter-spacing: 0.3px;
         }
     </style>
 </head>
 <body>
-    <a href="planets.html" class="back-btn">← Planets</a>
-    <div class="debug-hint" id="debug-status">Waiting for marker...</div>
+    <a href="index.html" class="back-btn">← Solar System</a>
+    <div class="debug-hint" id="debug-status">Waiting for HIRO marker...</div>
 
-    <!-- Toggle button (visible when panel hidden) -->
+    <!-- Toggle button (appears when info panel is hidden) -->
     <button id="toggle-info">🌍 Show Planet Info</button>
 
-    <!-- Robust gesture handler for scaling and rotation -->
+    <!-- Robust gesture handler (scale + rotate) with multi-touch -->
     <script>
         AFRAME.registerComponent('gesture-control', {
             init: function () {
@@ -152,7 +192,7 @@
                 let isPinching = false;
                 let startScale = 1;
 
-                // Ensure initial position and scale
+                // Ensure initial transform
                 targetEl.object3D.position.set(0, 0, 0);
                 targetEl.object3D.scale.set(1, 1, 1);
 
@@ -204,15 +244,14 @@
                         const deltaY = centerY - lastTouchCenter.y;
                         const rotSpeed = 0.008;
 
-                        // Apply rotations around world axes
                         if (Math.abs(deltaX) > 0.5) {
-                            targetEl.object3D.rotateY(deltaX * rotSpeed); // yaw
+                            targetEl.object3D.rotateY(deltaX * rotSpeed);
                         }
                         if (Math.abs(deltaY) > 0.5) {
-                            targetEl.object3D.rotateX(deltaY * rotSpeed); // pitch
+                            targetEl.object3D.rotateX(deltaY * rotSpeed);
                         }
 
-                        // Small roll from finger twist
+                        // Twist (roll)
                         const currentAngle = Math.atan2(dy, dx);
                         const deltaAngle = currentAngle - lastTouchCenter.angle;
                         if (Math.abs(deltaAngle) > 0.01) {
@@ -234,7 +273,7 @@
         });
     </script>
 
-    <!-- A-Frame Scene -->
+    <!-- A-Frame Scene with extra lighting for bright models -->
     <a-scene embedded
              arjs="sourceType: webcam; detectionMode: mono; matrixCodeType: 3x3; debugUIEnabled: false; trackingMethod: best;"
              renderer="antialias: true; alpha: true;"
@@ -243,17 +282,25 @@
 
         <a-entity camera></a-entity>
 
+        <!-- HIRO marker with multiple light sources to eliminate darkness -->
         <a-marker preset="hiro" id="planet-marker" emitevents="true" registerevents>
-            <a-light type="ambient" color="#ffffff" intensity="0.3"></a-light>
-            <a-light type="point" intensity="2" position="0 0 0" color="#ffaa00"></a-light>
+            <!-- Strong ambient to fill shadows -->
+            <a-light type="ambient" color="#ffffff" intensity="0.8"></a-light>
+            <!-- Main directional light from top-front -->
+            <a-light type="directional" color="#fff4e6" intensity="1.5" position="2 3 4"></a-light>
+            <!-- Additional fill lights to wrap around -->
+            <a-light type="point" intensity="1.2" position="2 1 2" color="#aaccff"></a-light>
+            <a-light type="point" intensity="1.0" position="-2 1 -2" color="#ffccaa"></a-light>
+            <!-- Extra light near the sun position (though sun not here) -->
+            <a-light type="point" intensity="1.5" position="1 2 0" color="#ffffff"></a-light>
 
-            <!-- Planet system container (will be transformed) -->
+            <!-- Planet system container (all planets/moons will be injected here) -->
             <a-entity id="planet-system"></a-entity>
         </a-marker>
     </a-scene>
 
     <!-- Info panel (filled dynamically) -->
-    <div id="info-panel"></div>
+    <div id="info-panel" class="glass-panel"></div>
 
     <script>
         (function() {
@@ -263,7 +310,7 @@
             const infoPanel = document.getElementById('info-panel');
             const toggleBtn = document.getElementById('toggle-info');
 
-            // Planet data with moons
+            // Extended planet data with moons (same as original but ensure colors)
             const planetData = {
                 mercury: {
                     name: 'Mercury',
@@ -297,7 +344,7 @@
                     texture: 'earth.jpg',
                     ring: false,
                     moonList: [
-                        { name: 'Luna', radius: 0.06, distance: 0.45, color: '#ccc', speed: 3000 }
+                        { name: 'Luna', radius: 0.06, distance: 0.45, color: '#dddddd', speed: 3000 }
                     ]
                 },
                 mars: {
@@ -310,8 +357,8 @@
                     texture: 'mars.jpg',
                     ring: false,
                     moonList: [
-                        { name: 'Phobos', radius: 0.04, distance: 0.4, color: '#a52a2a', speed: 2000 },
-                        { name: 'Deimos', radius: 0.03, distance: 0.55, color: '#8b4513', speed: 4000 }
+                        { name: 'Phobos', radius: 0.04, distance: 0.4, color: '#b87c4b', speed: 2000 },
+                        { name: 'Deimos', radius: 0.03, distance: 0.55, color: '#a06542', speed: 4000 }
                     ]
                 },
                 jupiter: {
@@ -324,10 +371,10 @@
                     texture: 'jupiter.jpg',
                     ring: false,
                     moonList: [
-                        { name: 'Io', radius: 0.07, distance: 0.5, color: '#ffa500', speed: 2000 },
-                        { name: 'Europa', radius: 0.06, distance: 0.65, color: '#c0c0c0', speed: 3000 },
-                        { name: 'Ganymede', radius: 0.08, distance: 0.8, color: '#a9a9a9', speed: 4000 },
-                        { name: 'Callisto', radius: 0.07, distance: 0.95, color: '#696969', speed: 5000 }
+                        { name: 'Io', radius: 0.07, distance: 0.5, color: '#ffaa33', speed: 2000 },
+                        { name: 'Europa', radius: 0.06, distance: 0.65, color: '#b0c4de', speed: 3000 },
+                        { name: 'Ganymede', radius: 0.08, distance: 0.8, color: '#a0a0a0', speed: 4000 },
+                        { name: 'Callisto', radius: 0.07, distance: 0.95, color: '#6b6b6b', speed: 5000 }
                     ]
                 },
                 saturn: {
@@ -341,9 +388,9 @@
                     ring: true,
                     ringTexture: 'saturn_ring.png',
                     moonList: [
-                        { name: 'Titan', radius: 0.09, distance: 0.7, color: '#ffd700', speed: 3500 },
-                        { name: 'Rhea', radius: 0.06, distance: 0.9, color: '#d3d3d3', speed: 4500 },
-                        { name: 'Dione', radius: 0.05, distance: 1.1, color: '#b0c4de', speed: 5500 }
+                        { name: 'Titan', radius: 0.09, distance: 0.7, color: '#d2b48c', speed: 3500 },
+                        { name: 'Rhea', radius: 0.06, distance: 0.9, color: '#c0c0c0', speed: 4500 },
+                        { name: 'Dione', radius: 0.05, distance: 1.1, color: '#b8b8b8', speed: 5500 }
                     ]
                 },
                 uranus: {
@@ -357,8 +404,8 @@
                     ring: true,
                     ringTexture: 'uranus_ring.png',
                     moonList: [
-                        { name: 'Titania', radius: 0.06, distance: 0.65, color: '#e6e6fa', speed: 4000 },
-                        { name: 'Oberon', radius: 0.06, distance: 0.85, color: '#b0e0e6', speed: 5000 }
+                        { name: 'Titania', radius: 0.06, distance: 0.65, color: '#b0e0e6', speed: 4000 },
+                        { name: 'Oberon', radius: 0.06, distance: 0.85, color: '#9ac0cd', speed: 5000 }
                     ]
                 },
                 neptune: {
@@ -371,35 +418,33 @@
                     texture: 'neptune.jpg',
                     ring: false,
                     moonList: [
-                        { name: 'Triton', radius: 0.07, distance: 0.6, color: '#4682b4', speed: 3500 }
+                        { name: 'Triton', radius: 0.07, distance: 0.6, color: '#5d9b9b', speed: 3500 }
                     ]
                 }
             };
 
-            // Get planet name from URL
+            // Get planet name from URL (?name=earth)
             const urlParams = new URLSearchParams(window.location.search);
             const planetKey = urlParams.get('name') || 'earth';
             const data = planetData[planetKey];
 
             if (!data) {
-                infoPanel.innerHTML = '<h2>Planet not found</h2>';
+                infoPanel.innerHTML = '<h2>✨ Planet not found</h2>';
                 return;
             }
 
-            // Create the planet system content (planet + moons)
-            // We'll add everything directly to planetSystem so that gestures affect all.
-
-            // Planet sphere (with self-rotation)
+            // ----- Build the planet system (planet + moons) with proper lighting responsiveness -----
+            // Planet sphere with self-rotation
             const planetEntity = document.createElement('a-entity');
             planetEntity.setAttribute('position', '0 0 0');
 
             const sphere = document.createElement('a-sphere');
             sphere.setAttribute('radius', '0.25');
             sphere.setAttribute('material', `src: url(images/${data.texture});`);
-            sphere.setAttribute('animation', `property: rotation; to: 0 360 0; dur: 8000; easing: linear; repeat: indefinite`);
+            sphere.setAttribute('animation', 'property: rotation; to: 0 360 0; dur: 8000; easing: linear; repeat: indefinite');
             planetEntity.appendChild(sphere);
 
-            // Add ring if needed
+            // Add planetary ring if present
             if (data.ring) {
                 const ring = document.createElement('a-ring');
                 ring.setAttribute('radius-inner', '0.35');
@@ -412,42 +457,41 @@
 
             planetSystem.appendChild(planetEntity);
 
-            // Moons
+            // Moons (each in its own orbit container)
             data.moonList.forEach(moon => {
-                // Container that rotates around planet
                 const moonOrbit = document.createElement('a-entity');
                 moonOrbit.setAttribute('position', '0 0 0');
                 moonOrbit.setAttribute('animation', `property: rotation; to: 0 360 0; dur: ${moon.speed * 2}; easing: linear; repeat: indefinite`);
 
                 const moonSphere = document.createElement('a-sphere');
                 moonSphere.setAttribute('radius', moon.radius);
-                moonSphere.setAttribute('material', `color: ${moon.color}`);
+                moonSphere.setAttribute('material', `color: ${moon.color}; emissive: #222222`); // slight emissive to catch light
                 moonSphere.setAttribute('position', `${moon.distance} 0 0`);
-                // Moon self-spin
                 moonSphere.setAttribute('animation', `property: rotation; to: 0 360 0; dur: 4000; easing: linear; repeat: indefinite`);
 
                 moonOrbit.appendChild(moonSphere);
                 planetSystem.appendChild(moonOrbit);
             });
 
-            // Decorative stars around the planet (static relative to planet)
+            // Decorative tiny stars around the planet (static relative to planet)
             const stars = document.createElement('a-entity');
             stars.setAttribute('position', '0 0 0');
-            for (let i = 0; i < 10; i++) {
+            for (let i = 0; i < 12; i++) {
                 const star = document.createElement('a-sphere');
-                star.setAttribute('radius', '0.02');
+                star.setAttribute('radius', '0.015');
                 star.setAttribute('color', '#fff');
-                const angle = (i / 10) * Math.PI * 2;
-                const rad = 1.5;
-                star.setAttribute('position', `${Math.cos(angle)*rad} ${Math.sin(angle)*0.5} ${Math.sin(angle)*rad}`);
+                star.setAttribute('emissive', '#aaa');
+                const angle = (i / 12) * Math.PI * 2;
+                const rad = 1.6;
+                star.setAttribute('position', `${Math.cos(angle)*rad} ${Math.sin(angle)*0.3} ${Math.sin(angle)*rad}`);
                 stars.appendChild(star);
             }
             planetSystem.appendChild(stars);
 
-            // Build info panel
+            // ----- Glass info panel content -----
             infoPanel.innerHTML = `
                 <button class="close-btn" id="closePanel">✕</button>
-                <h2>${data.name}</h2>
+                <h2>🪐 ${data.name}</h2>
                 <p><strong>Diameter:</strong> ${data.diameter}</p>
                 <p><strong>Distance from Sun:</strong> ${data.distance}</p>
                 <p><strong>Day length:</strong> ${data.dayLength}</p>
@@ -456,13 +500,12 @@
                 <button class="read-btn" id="readBtn">🔊 Read Aloud</button>
             `;
 
-            // Close panel functionality
+            // ----- Panel controls -----
             document.getElementById('closePanel').addEventListener('click', () => {
                 infoPanel.classList.add('hidden');
                 toggleBtn.style.display = 'block';
             });
 
-            // Toggle button to reopen
             toggleBtn.addEventListener('click', () => {
                 infoPanel.classList.remove('hidden');
                 toggleBtn.style.display = 'none';
@@ -477,23 +520,25 @@
 
             // Marker events
             marker.addEventListener('markerFound', () => {
-                debug.innerText = '✅ Marker FOUND!';
-                debug.style.color = '#0f0';
+                debug.innerText = '✅ Marker FOUND – planet active';
+                debug.style.color = '#b0ffb0';
             });
             marker.addEventListener('markerLost', () => {
                 debug.innerText = '❌ Marker lost – show HIRO';
-                debug.style.color = '#ff0';
+                debug.style.color = '#ffb0b0';
             });
 
-            // Camera access check
+            // Camera permission check
             navigator.mediaDevices.getUserMedia({ video: true })
                 .then(() => console.log('Camera ready'))
                 .catch(() => {
                     debug.innerText = '⚠️ Camera access denied';
-                    debug.style.color = '#f00';
+                    debug.style.color = '#ffa0a0';
                 });
         })();
     </script>
+
+    <!-- optional chatbot (external, kept as reference) -->
     <script src="ai-chatbot.js"></script>
 </body>
 </html>
