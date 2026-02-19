@@ -75,7 +75,7 @@
             100% { opacity: 0.2; transform: scale(1); }
         }
 
-        /* ===== WELCOME MODAL ===== */
+        /* ===== WELCOME MODAL (ONCE PER SESSION) ===== */
         .modal-overlay {
             position: fixed;
             top: 0;
@@ -94,9 +94,9 @@
         .modal-content {
             background: rgba(20, 30, 50, 0.8);
             border: 2px solid #0ff;
-            border-radius: 50px;
-            padding: 3rem 2rem;
-            max-width: 500px;
+            border-radius: 40px;
+            padding: 2rem 1.8rem;
+            max-width: 450px;
             width: 90%;
             text-align: center;
             box-shadow: 0 0 60px #0ff;
@@ -107,43 +107,43 @@
             to { box-shadow: 0 0 80px #f0f; }
         }
         .modal-content i {
-            font-size: 5rem;
+            font-size: 4rem;
             color: #0ff;
-            margin-bottom: 1rem;
+            margin-bottom: 0.8rem;
             filter: drop-shadow(0 0 20px #0ff);
         }
         .modal-content h2 {
             font-family: 'Orbitron', sans-serif;
-            font-size: 2.5rem;
-            margin-bottom: 1rem;
+            font-size: 2rem;
+            margin-bottom: 0.8rem;
             background: linear-gradient(45deg, #fff, #aaddff);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
         .modal-content p {
-            font-size: 1.3rem;
-            margin-bottom: 2rem;
+            font-size: 1.2rem;
+            margin-bottom: 1.8rem;
             color: rgba(255,255,255,0.9);
         }
         .modal-btn {
             background: linear-gradient(45deg, #0066aa, #440088);
             border: 2px solid #0ff;
-            border-radius: 60px;
-            padding: 1rem 3rem;
+            border-radius: 40px;
+            padding: 0.7rem 2rem;
             font-family: 'Orbitron', sans-serif;
-            font-size: 1.8rem;
+            font-size: 1.3rem;
             font-weight: 600;
             color: white;
             cursor: pointer;
             transition: 0.3s;
-            box-shadow: 0 0 30px #0ff;
+            box-shadow: 0 0 20px #0ff;
             display: inline-block;
             text-decoration: none;
         }
         .modal-btn:hover {
-            transform: scale(1.1);
+            transform: scale(1.05);
             background: linear-gradient(45deg, #0088ff, #6600cc);
-            box-shadow: 0 0 60px #0ff;
+            box-shadow: 0 0 40px #0ff;
         }
 
         /* ===== MAIN CONTAINER ===== */
@@ -418,7 +418,7 @@
     </style>
 </head>
 <body>
-    <!-- WELCOME MODAL -->
+    <!-- WELCOME MODAL (ONCE PER SESSION) -->
     <div id="welcomeModal" class="modal-overlay">
         <div class="modal-content">
             <i class="fas fa-mobile-alt"></i>
@@ -507,26 +507,37 @@
 
     <!-- Download functionality using local file -->
     <script>
-        // Function to download the marker file
         function downloadMarker() {
-            // Create a link to the local file
             const link = document.createElement('a');
             link.href = 'images/hiro_marker.png';
-            link.download = 'hiro_marker.png'; // suggested filename
+            link.download = 'hiro_marker.png';
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
         }
-
         document.getElementById('downloadMarkerBtn').addEventListener('click', downloadMarker);
         document.getElementById('markerPreview').addEventListener('click', downloadMarker);
     </script>
 
-    <!-- Modal dismissal -->
+    <!-- Modal: once per session + smaller button -->
     <script>
-        document.getElementById('startExploringBtn').addEventListener('click', function() {
-            document.getElementById('welcomeModal').style.display = 'none';
-        });
+        (function() {
+            const modal = document.getElementById('welcomeModal');
+            const startBtn = document.getElementById('startExploringBtn');
+
+            // Check if the modal has already been dismissed in this session
+            if (sessionStorage.getItem('welcomeDismissed') === 'true') {
+                modal.style.display = 'none';
+            } else {
+                modal.style.display = 'flex'; // ensure it's visible
+            }
+
+            // When user clicks "Start Exploring", hide modal and set flag
+            startBtn.addEventListener('click', function() {
+                modal.style.display = 'none';
+                sessionStorage.setItem('welcomeDismissed', 'true');
+            });
+        })();
     </script>
 
     <!-- 3D Solar System Preview Script with Orbits -->
@@ -538,22 +549,17 @@
         const width = container.clientWidth;
         const height = container.clientHeight;
 
-        // Scene
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x0a0f1e);
 
-        // Camera
         const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
         camera.position.set(30, 20, 50);
         camera.lookAt(0, 0, 0);
 
-        // Renderer
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
         renderer.setSize(width, height);
-        renderer.shadowMap.enabled = false;
         container.appendChild(renderer.domElement);
 
-        // Controls
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         controls.dampingFactor = 0.05;
@@ -562,7 +568,6 @@
         controls.enableZoom = true;
         controls.maxPolarAngle = Math.PI / 2;
 
-        // Lights
         const ambientLight = new THREE.AmbientLight(0x404060);
         scene.add(ambientLight);
 
@@ -570,13 +575,11 @@
         sunLight.position.set(0, 0, 0);
         scene.add(sunLight);
 
-        // Sun
         const sunGeo = new THREE.SphereGeometry(5, 64, 64);
         const sunMat = new THREE.MeshStandardMaterial({ color: 0xffaa00, emissive: 0xff5500 });
         const sun = new THREE.Mesh(sunGeo, sunMat);
         scene.add(sun);
 
-        // Helper function to create orbit rings
         function createOrbitRing(radius, color = 0x3366ff) {
             const points = [];
             const segments = 128;
@@ -590,7 +593,6 @@
             scene.add(ring);
         }
 
-        // Texture loader (fallback colors if images missing)
         const loader = new THREE.TextureLoader();
         function createPlanet(size, color, distance, speed, textureUrl) {
             const geometry = new THREE.SphereGeometry(size, 32, 32);
@@ -609,7 +611,6 @@
             return planet;
         }
 
-        // Create planets (with colors as fallback)
         const planets = [
             { size: 0.8, color: 0xaaaaaa, distance: 8, speed: 0.01, tex: 'images/mercury.jpg' },
             { size: 1.0, color: 0xffcc88, distance: 12, speed: 0.007, tex: 'images/venus.jpg' },
@@ -621,7 +622,6 @@
             { size: 1.6, color: 0x3366ff, distance: 52, speed: 0.0008, tex: 'images/neptune.jpg' }
         ];
 
-        // Create orbit rings for each planet distance
         planets.forEach(p => createOrbitRing(p.distance, 0x44aaff));
 
         const planetMeshes = [];
@@ -631,36 +631,27 @@
             planetMeshes.push({ mesh: planet, distance: p.distance, speed: p.speed, angle: Math.random() * Math.PI * 2 });
         });
 
-        // Saturn's ring (if texture available)
-        // For simplicity, we add a simple ring using a torus
         const ringGeo = new THREE.TorusGeometry(2.5, 0.4, 16, 100);
         const ringMat = new THREE.MeshStandardMaterial({ color: 0xccaa88, side: THREE.DoubleSide, transparent: true, opacity: 0.6 });
         const ring = new THREE.Mesh(ringGeo, ringMat);
         ring.rotation.x = Math.PI / 2;
-        ring.position.x = 36; // same as Saturn's distance
+        ring.position.x = 36;
         scene.add(ring);
 
-        // Animation
         function animate() {
             requestAnimationFrame(animate);
-
-            // Rotate planets around sun
             planetMeshes.forEach(p => {
                 p.angle += p.speed * 0.5;
                 p.mesh.position.x = Math.cos(p.angle) * p.distance;
                 p.mesh.position.z = Math.sin(p.angle) * p.distance;
             });
-
-            // Rotate ring with Saturn (simplified)
             ring.position.x = Math.cos(planetMeshes[5].angle) * 36;
             ring.position.z = Math.sin(planetMeshes[5].angle) * 36;
-
             controls.update();
             renderer.render(scene, camera);
         }
         animate();
 
-        // Resize observer
         window.addEventListener('resize', () => {
             const newWidth = container.clientWidth;
             const newHeight = container.clientHeight;
@@ -692,27 +683,23 @@
         createStars('stars2', 100, 2, 5, '#ffaaff', '#ff80c0');
         createStars('stars3', 50, 3, 8, '#aaffff', '#00aaff');
 
-        // Progress bar
         window.addEventListener('scroll', () => {
             const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
             const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
             document.getElementById('progress-bar').style.width = (winScroll / height) * 100 + '%';
         });
 
-        // Explain button: scroll to steps and speak
         const explainBtn = document.getElementById('explainBtn');
         const stepsSection = document.getElementById('steps');
         explainBtn.addEventListener('click', () => {
             stepsSection.scrollIntoView({ behavior: 'smooth' });
-
-            // Friendly voice explanation
             const speech = new SpeechSynthesisUtterance();
             speech.text = "Hey there! To experience the solar system in AR, first download the Hiro marker and print it. Then open this page on your phone, point your camera at the marker, and the planets will pop up! Use one finger to rotate the model, two fingers to move it around and zoom in on any planet. It's super easy and fun! Give it a try.";
             speech.rate = 0.9;
             speech.pitch = 1.1;
             speech.volume = 1;
             speech.lang = 'en-US';
-            window.speechSynthesis.cancel(); // stop any ongoing
+            window.speechSynthesis.cancel();
             window.speechSynthesis.speak(speech);
         });
     </script>
