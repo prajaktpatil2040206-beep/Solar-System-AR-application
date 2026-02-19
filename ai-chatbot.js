@@ -1,9 +1,13 @@
 // ai-chatbot.js – Space AI Assistant (Gemini 2.0 Flash, header auth)
 
 (function() {
-   const API_KEY = process.env.GEMINI_API_KEY;
+    const API_KEY = window.GEMINI_API_KEY || null;
     const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
+    // If no API key is found, show a warning in console (button will still appear)
+    if (!API_KEY) {
+        console.warn('⚠️ GEMINI_API_KEY is not set. Chat will use local fallback responses only.');
+    }
     // Inject styles (same as before)
     const style = document.createElement('style');
     style.innerHTML = `
