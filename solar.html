@@ -86,7 +86,7 @@
     <!-- main info glass card (no emojis) -->
     <div class="glass-panel info-card" id="infoMessage">Point at HIRO marker – 1 finger rotate · 2 fingers drag & zoom anywhere</div>
 
-    <!-- gesture handler (unchanged but robust) -->
+    <!-- gesture handler (unchanged) -->
     <script>
         AFRAME.registerComponent('gesture-control', {
             init: function () {
@@ -269,29 +269,11 @@
             <a-light type="ambient" color="#ffffff" intensity="0.3"></a-light>
             <a-light type="point" intensity="2" position="0 0 0" color="#ffaa00"></a-light>
 
-            <!-- All planets + thin white orbit lines inside solar-system -->
+            <!-- All planets (no orbit rings) inside solar-system -->
             <a-entity id="solar-system">
                 <!-- SUN -->
                 <a-sphere radius="0.25" position="0 0 0"
                           material="src: url(images/sun.jpg); emissive: #ff6600; emissiveIntensity: 1.5;"></a-sphere>
-
-                <!-- ===== THIN WHITE ORBIT LINES (single circular line, not a disk) ===== -->
-                <!-- Mercury orbit line -->
-                <a-torus radius="0.5" tube="0.003" rotation="90 0 0" color="#ffffff" transparent="true" opacity="0.7" position="0 0 0"></a-torus>
-                <!-- Venus orbit line -->
-                <a-torus radius="0.7" tube="0.003" rotation="90 0 0" color="#ffffff" transparent="true" opacity="0.7" position="0 0 0"></a-torus>
-                <!-- Earth orbit line -->
-                <a-torus radius="0.9" tube="0.003" rotation="90 0 0" color="#ffffff" transparent="true" opacity="0.7" position="0 0 0"></a-torus>
-                <!-- Mars orbit line -->
-                <a-torus radius="1.1" tube="0.003" rotation="90 0 0" color="#ffffff" transparent="true" opacity="0.7" position="0 0 0"></a-torus>
-                <!-- Jupiter orbit line -->
-                <a-torus radius="1.5" tube="0.004" rotation="90 0 0" color="#ffffff" transparent="true" opacity="0.7" position="0 0 0"></a-torus>
-                <!-- Saturn orbit line -->
-                <a-torus radius="1.9" tube="0.004" rotation="90 0 0" color="#ffffff" transparent="true" opacity="0.7" position="0 0 0"></a-torus>
-                <!-- Uranus orbit line -->
-                <a-torus radius="2.3" tube="0.004" rotation="90 0 0" color="#ffffff" transparent="true" opacity="0.7" position="0 0 0"></a-torus>
-                <!-- Neptune orbit line -->
-                <a-torus radius="2.7" tube="0.004" rotation="90 0 0" color="#ffffff" transparent="true" opacity="0.7" position="0 0 0"></a-torus>
 
                 <!-- ===== PLANETS (each inside revolving container) ===== -->
                 <!-- MERCURY -->
@@ -302,7 +284,7 @@
                             <a-animation attribute="rotation" to="0 360 0" dur="4000" easing="linear" repeat="indefinite"></a-animation>
                         </a-entity>
                     </a-entity>
-                    <!-- Revolution around the sun (container rotates) -->
+                    <!-- Revolution around the sun -->
                     <a-animation attribute="rotation" to="0 360 0" dur="8000" easing="linear" repeat="indefinite"></a-animation>
                 </a-entity>
 
@@ -412,7 +394,6 @@
             ];
 
             // Wait for each orbit to be fully loaded before setting random rotation
-            // This prevents conflicts with the animation component
             orbitIds.forEach(id => {
                 const orbit = document.getElementById(id);
                 if (orbit) {
