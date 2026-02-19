@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>AR Solar System – glass explorer</title>
+    <title>AR Solar System – glass explorer · persistent marker</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <!-- A-Frame + AR.js -->
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
@@ -84,10 +84,119 @@
     <a href="index.html" class="glass-panel back-btn">← Home</a>
 
     <!-- main info glass card (no emojis) -->
-    <div class="glass-panel info-card" id="infoMessage">Point at HIRO marker – 1 finger rotate · 2 fingers drag & zoom anywhere</div>
+    <div class="glass-panel info-card" id="infoMessage">Point at HIRO marker – 1 finger rotate · 2 fingers drag & zoom</div>
 
-    <!-- gesture handler (unchanged) -->
+    <!-- ==========  IMPROVED MARKER PERSISTENCE COMPONENT ========== -->
     <script>
+        // Component that keeps the model alive for 8 seconds after marker loss,
+        // using last known marker pose. Attach to the root entity that should follow the marker.
+        AFRAME.registerComponent('marker-persist', {
+            schema: {
+                marker: { type: 'selector' },      // the <a-marker> element
+                timeout: { default: 8000 }          // milliseconds to keep visible after loss
+            },
+
+            init: function () {
+                this.lastSeen = 0;                   // timestamp of last valid marker pose
+                this.markerVisible = false;           // current detection state from events
+                this.timeoutHide = null;              // timeout handle
+                this.isVisible = false;                // current visibility of root
+
+                // temp vectors for decomposition
+                this.pos = new THREE.Vector3();
+                this.quat = new THREE.Quaternion();
+                this.scale = new THREE.Vector3();
+
+                // marker event listeners
+                this.markerFoundHandler = this.onMarkerFound.bind(this);
+                this.markerLostHandler = this.onMarkerLost.bind(this);
+
+                const markerEl = this.data.marker;
+                if (markerEl) {
+                    markerEl.addEventListener('markerFound', this.markerFoundHandler);
+                    markerEl.addEventListener('markerLost', this.markerLostHandler);
+                } else {
+                    console.warn('marker-persist: no marker element found');
+                }
+
+                // initially hide the root until marker is found
+                this.el.setAttribute('visible', false);
+            },
+
+            onMarkerFound: function () {
+                this.markerVisible = true;
+                this.lastSeen = Date.now();
+                // cancel any pending hide timeout
+                if (this.timeoutHide) {
+                    clearTimeout(this.timeoutHide);
+                    this.timeoutHide = null;
+                }
+                // make sure root is visible
+                this.el.setAttribute('visible', true);
+                this.isVisible = true;
+            },
+
+            onMarkerLost: function () {
+                this.markerVisible = false;
+                // start timeout to hide after 'timeout' ms
+                if (this.timeoutHide) clearTimeout(this.timeoutHide);
+                this.timeoutHide = setTimeout(() => {
+                    // only hide if still not detected and timeout passed
+                    if (!this.markerVisible && Date.now() - this.lastSeen >= this.data.timeout) {
+                        this.el.setAttribute('visible', false);
+                        this.isVisible = false;
+                    }
+                    this.timeoutHide = null;
+                }, this.data.timeout);
+            },
+
+            tick: function () {
+                if (this.markerVisible) {
+                    // marker is currently detected: update root transform to match marker
+                    const markerObj = this.data.marker.object3D;
+                    if (!markerObj) return;
+
+                    // get marker world matrix
+                    const worldMatrix = markerObj.matrixWorld;
+
+                    // decompose to position / quaternion / scale
+                    worldMatrix.decompose(this.pos, this.quat, this.scale);
+
+                    // apply to root entity (solar-root)
+                    this.el.object3D.position.copy(this.pos);
+                    this.el.object3D.quaternion.copy(this.quat);
+                    this.el.object3D.scale.copy(this.scale);
+
+                    // update last seen timestamp each frame to keep alive while detected
+                    this.lastSeen = Date.now();
+
+                    // ensure visibility
+                    if (!this.isVisible) {
+                        this.el.setAttribute('visible', true);
+                        this.isVisible = true;
+                    }
+                } else {
+                    // marker lost: check timeout, but we do nothing here (timeout handles hiding)
+                    // we keep the last known transform (already set)
+                    // but we must ensure visibility based on timeout
+                    if (this.isVisible && (Date.now() - this.lastSeen >= this.data.timeout)) {
+                        this.el.setAttribute('visible', false);
+                        this.isVisible = false;
+                    }
+                }
+            },
+
+            remove: function () {
+                const markerEl = this.data.marker;
+                if (markerEl) {
+                    markerEl.removeEventListener('markerFound', this.markerFoundHandler);
+                    markerEl.removeEventListener('markerLost', this.markerLostHandler);
+                }
+                if (this.timeoutHide) clearTimeout(this.timeoutHide);
+            }
+        });
+
+        // gesture control (unchanged, targets the inner solar-system entity)
         AFRAME.registerComponent('gesture-control', {
             init: function () {
                 const targetEl = document.getElementById('solar-system');
@@ -257,19 +366,22 @@
 
     <!-- AR Scene -->
     <a-scene embedded
-             arjs="sourceType: webcam; detectionMode: mono; matrixCodeType: 3x3; debugUIEnabled: false; trackingMethod: best;"
+             arjs="sourceType: webcam; detectionMode: mono; matrixCodeType: 3x3; debugUIEnabled: false; trackingMethod: best; smooth: true; smoothCount: 5;"
              renderer="antialias: true; alpha: true;"
              gesture-control
              vr-mode-ui="enabled: false">
 
         <a-entity camera></a-entity>
 
-        <!-- HIRO marker -->
+        <!-- HIRO marker (still emits events) -->
         <a-marker preset="hiro" id="solar-marker" emitevents="true" registerevents>
             <a-light type="ambient" color="#ffffff" intensity="0.3"></a-light>
             <a-light type="point" intensity="2" position="0 0 0" color="#ffaa00"></a-light>
+        </a-marker>
 
-            <!-- All planets (no orbit rings) inside solar-system -->
+        <!-- ========== PERSISTENT ROOT (follows marker, stays 8s after loss) ========== -->
+        <a-entity id="solar-root" marker-persist="marker: #solar-marker; timeout: 8000" visible="false">
+            <!-- All planets (no orbit rings) inside solar-system (target for gestures) -->
             <a-entity id="solar-system">
                 <!-- SUN -->
                 <a-sphere radius="0.25" position="0 0 0"
@@ -381,7 +493,7 @@
                     <a-sphere radius="0.02" color="#fff" position="-0.3 -0.4 1.2"></a-sphere>
                 </a-entity>
             </a-entity> <!-- solar-system -->
-        </a-marker>
+        </a-entity> <!-- solar-root -->
     </a-scene>
 
     <!-- Marker events + random orbit start positions (ensures planets are not aligned) -->
@@ -409,10 +521,10 @@
             const infoDiv = document.getElementById('infoMessage');
             if (marker) {
                 marker.addEventListener('markerFound', () => {
-                    infoDiv.innerHTML = 'Marker FOUND – Solar system visible';
+                    infoDiv.innerHTML = 'Marker FOUND – Solar system visible (persistent for 8s after loss)';
                 });
                 marker.addEventListener('markerLost', () => {
-                    infoDiv.innerHTML = 'Marker lost – show HIRO to camera';
+                    infoDiv.innerHTML = 'Marker lost – keeping model for 8s, show HIRO again';
                 });
             }
         })();
