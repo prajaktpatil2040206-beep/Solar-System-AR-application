@@ -48,33 +48,6 @@
             box-shadow: 0 0 30px #0ff;
         }
 
-        /* VR BUTTON (added) */
-        .vr-btn {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(10px);
-            border: 2px solid #0ff;
-            border-radius: 40px;
-            padding: 10px 22px;
-            color: white;
-            font-size: 1.2rem;
-            cursor: pointer;
-            z-index: 1001;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            box-shadow: 0 0 20px #0ff;
-            transition: 0.3s;
-            text-decoration: none;
-        }
-        .vr-btn:hover {
-            background: rgba(0, 255, 255, 0.2);
-            box-shadow: 0 0 40px #0ff;
-            transform: scale(1.05);
-        }
-
         /* Horizontal scroll container (carousel) */
         .carousel {
             display: flex;
@@ -236,9 +209,6 @@
     <!-- Fixed back button -->
     <a href="index.html" class="back-btn-fixed"><i class="fas fa-arrow-left"></i> Home</a>
 
-    <!-- VR BUTTON (added) - links to planet.html with VR param, defaulting to Earth -->
-    <a href="planet.html?name=earth&vr=true" class="vr-btn"><i class="fas fa-vr-cardboard"></i> VR Mode</a>
-
     <!-- Horizontal carousel -->
     <div class="carousel" id="carousel"></div>
 
@@ -353,8 +323,7 @@
                         <div class="planet-description"><i class="fas fa-quote-left"></i> ${p.description}</div>
                     </div>
                     <div class="button-group">
-                        <a class="btn" href="planet.html?name=${p.name.toLowerCase()}"><i class="fas fa-vr-cardboard"></i> Show in AR</a>
-                        <a class="btn" href="planet.html?name=${p.name.toLowerCase()}&vr=true"><i class="fas fa-vr-cardboard"></i> VR</a>
+                        <a class="btn" href="planet.html?name=${p.name.toLowerCase()}"><i class="fas fa-mobile-alt"></i> Show in mobile device</a>
                         <button class="btn speaker" data-index="${index}"><i class="fas fa-volume-up"></i> Listen</button>
                     </div>
                 </div>

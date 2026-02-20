@@ -157,34 +157,6 @@
             border-color: #8ab3ff;
         }
 
-        /* VR BUTTON (added) */
-        .vr-btn {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(10px);
-            border: 2px solid #0ff;
-            border-radius: 40px;
-            padding: 10px 22px;
-            color: white;
-            font-size: 1.2rem;
-            cursor: pointer;
-            z-index: 1001;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            box-shadow: 0 0 20px #0ff;
-            transition: 0.3s;
-            border: none;
-            text-decoration: none;
-        }
-        .vr-btn:hover {
-            background: rgba(0, 255, 255, 0.2);
-            box-shadow: 0 0 40px #0ff;
-            transform: scale(1.05);
-        }
-
         .debug-hint {
             position: absolute;
             top: 90px;
@@ -203,8 +175,6 @@
 </head>
 <body>
     <a href="index.html" class="back-btn">Home</a>
-    <!-- VR BUTTON (added) - toggles VR mode -->
-    <button id="vrToggleBtn" class="vr-btn"><i class="fas fa-vr-cardboard"></i> Enter VR</button>
     <div class="debug-hint" id="debug-status">Waiting for HIRO marker...</div>
     <script src="ai-chatbot.js"></script>
     <!-- Toggle button (appears when info panel is hidden) - no emoji -->
@@ -313,17 +283,9 @@
              arjs="sourceType: webcam; detectionMode: mono; matrixCodeType: 3x3; debugUIEnabled: false; trackingMethod: best;"
              renderer="antialias: true; alpha: true;"
              gesture-control
-             vr-mode-ui="enabled: true"   <!-- Enable VR UI -->
-             id="scene">
+             vr-mode-ui="enabled: false">   <!-- VR UI disabled -->
 
-        <a-entity camera look-controls wasd-controls position="0 1.6 0"></a-entity>
-
-        <!-- Gaze cursor for VR interaction (optional) -->
-        <a-entity cursor="fuse: true; fuseTimeout: 500"
-                  position="0 0 -1"
-                  geometry="primitive: ring; radiusInner: 0.02; radiusOuter: 0.03"
-                  material="color: cyan; shader: flat">
-        </a-entity>
+        <a-entity camera></a-entity>
 
         <!-- HIRO marker -->
         <a-marker preset="hiro" id="planet-marker" emitevents="true" registerevents>
@@ -352,31 +314,10 @@
             const planetSystem = document.getElementById('planet-system');
             const infoPanel = document.getElementById('info-panel');
             const toggleBtn = document.getElementById('toggle-info');
-            const scene = document.querySelector('a-scene');
-            const vrToggle = document.getElementById('vrToggleBtn');
 
-            // Check URL for VR mode
+            // Get planet name from URL (?name=earth)
             const urlParams = new URLSearchParams(window.location.search);
-            const vrMode = urlParams.get('vr') === 'true';
-            if (vrMode) {
-                // Automatically enter VR after a short delay
-                setTimeout(() => {
-                    if (scene && scene.components['vr-mode-ui']) {
-                        scene.enterVR();
-                    }
-                }, 1000);
-                vrToggle.textContent = 'Exit VR';
-            }
-
-            vrToggle.addEventListener('click', () => {
-                if (scene.is('vr-mode')) {
-                    scene.exitVR();
-                    vrToggle.innerHTML = '<i class="fas fa-vr-cardboard"></i> Enter VR';
-                } else {
-                    scene.enterVR();
-                    vrToggle.innerHTML = '<i class="fas fa-vr-cardboard"></i> Exit VR';
-                }
-            });
+            const planetKey = urlParams.get('name') || 'earth';
 
             // Extended planet data with moons (same as original but ensure colors)
             const planetData = {
@@ -491,8 +432,6 @@
                 }
             };
 
-            // Get planet name from URL (?name=earth)
-            const planetKey = urlParams.get('name') || 'earth';
             const data = planetData[planetKey];
 
             if (!data) {
