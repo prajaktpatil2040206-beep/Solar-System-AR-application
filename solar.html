@@ -59,6 +59,28 @@
             border-color: rgba(255, 255, 255, 0.5);
         }
 
+        /* VR button – new */
+        .vr-btn {
+            right: 20px;
+            top: 20px;
+            background: rgba(0, 40, 60, 0.6);
+            border: 1.5px solid #0ff;
+            box-shadow: 0 0 15px #0ff;
+            color: white;
+            padding: 10px 22px;
+            border-radius: 40px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            backdrop-filter: blur(12px);
+            transition: 0.2s;
+            text-align: center;
+        }
+        .vr-btn:hover {
+            background: rgba(0, 80, 120, 0.8);
+            box-shadow: 0 0 30px #0ff;
+        }
+
         .info-card {
             bottom: 25px;
             left: 50%;
@@ -84,6 +106,8 @@
 <body>
     <!-- glass back button -->
     <a href="index.html" class="glass-panel back-btn">← Home</a>
+    <!-- VR button -->
+    <button id="vr-mode-btn" class="glass-panel vr-btn">Enter VR</button>
 
     <!-- main info glass card (no emojis) -->
     <div class="glass-panel info-card" id="infoMessage">Point at HIRO marker – 1 finger rotate · 2 fingers drag & zoom anywhere</div>
@@ -265,7 +289,7 @@
              arjs="sourceType: webcam; detectionMode: mono; matrixCodeType: 3x3; debugUIEnabled: false; trackingMethod: best;"
              renderer="antialias: true; alpha: true;"
              gesture-control
-             vr-mode-ui="enabled: false">   <!-- VR UI disabled -->
+             vr-mode-ui="enabled: false">   <!-- VR UI disabled, we use our own button -->
 
         <a-entity camera></a-entity>
 
@@ -417,6 +441,27 @@
                 });
                 marker.addEventListener('markerLost', () => {
                     infoDiv.innerHTML = 'Marker lost – show HIRO to camera';
+                });
+            }
+
+            // VR button handling
+            const vrBtn = document.getElementById('vr-mode-btn');
+            const scene = document.querySelector('a-scene');
+
+            if (scene) {
+                vrBtn.addEventListener('click', () => {
+                    if (scene.is('vr-mode')) {
+                        scene.exitVR();
+                    } else {
+                        scene.enterVR();
+                    }
+                });
+
+                scene.addEventListener('enter-vr', () => {
+                    vrBtn.textContent = 'Exit VR';
+                });
+                scene.addEventListener('exit-vr', () => {
+                    vrBtn.textContent = 'Enter VR';
                 });
             }
         })();
